@@ -91,7 +91,7 @@
           <button id="btnCreateSample" disabled>Create sample flow</button>
           <button id="btnCreateFromScreenshot" disabled>Use root screenshot</button>
           <button id="btnVerifyAll" disabled>Verify all cells</button>
-          <button id="btnRefreshCells" disabled>Refresh cells</button>
+          <button id="btnRefreshCells" disabled>Load cells</button>
           <a href="/health">Frontend health</a>
         </div>
         <p><strong>Token:</strong> <span id="tokenInfo">not logged</span></p>
@@ -379,7 +379,12 @@
             body: fd
           });
           const docText = await docRes.text();
-          const doc = docText ? JSON.parse(docText) : null;
+          let doc = null;
+          try {
+            doc = docText ? JSON.parse(docText) : null;
+          } catch {
+            throw new Error(`Invalid upload response: ${docText || docRes.statusText}`);
+          }
           if (!docRes.ok) {
             throw new Error(doc?.message || `${docRes.status} ${docRes.statusText}`);
           }
@@ -459,7 +464,12 @@
             body: fd
           });
           const docText = await docRes.text();
-          const doc = docText ? JSON.parse(docText) : null;
+          let doc = null;
+          try {
+            doc = docText ? JSON.parse(docText) : null;
+          } catch {
+            throw new Error(`Invalid upload response: ${docText || docRes.statusText}`);
+          }
           if (!docRes.ok) {
             throw new Error(doc?.message || `${docRes.status} ${docRes.statusText}`);
           }
@@ -491,13 +501,19 @@
         const jobInfo = await requestJson(`/recognition/jobs/${state.jobId}`, {
           method: 'GET'
         });
-        status(`job #${jobInfo.id || state.jobId}: ${jobInfo.status || '-'}`);
+        const jobStatus = jobInfo.status || 'UNKNOWN';
         const cells = await requestJson(`/recognition/jobs/${state.jobId}/cells`, {
           method: 'GET'
         });
         state.cells = Array.isArray(cells) ? cells : [];
         renderCells();
-        log(`Loaded ${state.cells.length} cells`);
+        if (!state.cells.length) {
+          status(`job #${jobInfo.id || state.jobId}: ${jobStatus} (no cells)`);
+          log(`No cells for job #${jobInfo.id || state.jobId}; possible reason: form has no configured cells.`);
+        } else {
+          status(`job #${jobInfo.id || state.jobId}: ${jobStatus}`);
+          log(`Loaded ${state.cells.length} cells`);
+        }
         paintState();
       }
 
