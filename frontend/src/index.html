@@ -437,11 +437,20 @@
           if (!state.jobId) {
             throw new Error('Не получен идентификатор задания распознавания');
           }
-          await waitForJobCompletion(state.jobId);
+          const jobInfo = await waitForJobCompletion(state.jobId);
+          if (!['COMPLETED'].includes(String(jobInfo.status || '').toUpperCase())) {
+            status(`задание #${state.jobId}: ${String(jobInfo.status || 'UNKNOWN').toUpperCase()}`);
+            log(`Распознавание завершено со статусом ${String(jobInfo.status || 'UNKNOWN').toUpperCase()}`);
+          }
           await refreshCells();
           $('btnVerifyAll').disabled = false;
           $('btnRefreshCells').disabled = false;
-          status('готово');
+          const finalCells = state.cells || [];
+          if (finalCells.length || ['COMPLETED'].includes(String(jobInfo.status || '').toUpperCase())) {
+            status('готово');
+          } else {
+            status('завершено без ячеек');
+          }
         } catch (error) {
           log('Ошибка потока', error.message);
           status('ошибка');
@@ -526,11 +535,20 @@
           if (!state.jobId) {
             throw new Error('Не получен идентификатор задания распознавания');
           }
-          await waitForJobCompletion(state.jobId);
+          const jobInfo = await waitForJobCompletion(state.jobId);
+          if (!['COMPLETED'].includes(String(jobInfo.status || '').toUpperCase())) {
+            status(`задание #${state.jobId}: ${String(jobInfo.status || 'UNKNOWN').toUpperCase()}`);
+            log(`Распознавание завершено со статусом ${String(jobInfo.status || 'UNKNOWN').toUpperCase()}`);
+          }
           await refreshCells();
           $('btnVerifyAll').disabled = false;
           $('btnRefreshCells').disabled = false;
-          status('готово');
+          const finalCells = state.cells || [];
+          if (finalCells.length || ['COMPLETED'].includes(String(jobInfo.status || '').toUpperCase())) {
+            status('готово');
+          } else {
+            status('завершено без ячеек');
+          }
         } catch (error) {
           log('Ошибка потока скриншота', error.message);
           status('ошибка');
