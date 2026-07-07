@@ -239,7 +239,19 @@
       }
 
       function candidateSymbols(cell) {
-        const candidates = Array.isArray(cell.candidate_values) ? cell.candidate_values : [];
+        const candidateValues = cell.candidate_values;
+        const candidates = Array.isArray(candidateValues)
+          ? candidateValues
+          : (typeof candidateValues === 'string'
+              ? (() => {
+                  try {
+                    const parsed = JSON.parse(candidateValues);
+                    return Array.isArray(parsed) ? parsed : [];
+                  } catch {
+                    return [];
+                  }
+                })()
+              : []);
         if (!candidates.length) {
           return [{ symbol: String(cell.recognized_value || '') }];
         }
@@ -476,6 +488,10 @@
 
       async function refreshCells() {
         if (!state.jobId) return;
+        const jobInfo = await requestJson(`/recognition/jobs/${state.jobId}`, {
+          method: 'GET'
+        });
+        status(`job #${jobInfo.id || state.jobId}: ${jobInfo.status || '-'}`);
         const cells = await requestJson(`/recognition/jobs/${state.jobId}/cells`, {
           method: 'GET'
         });
