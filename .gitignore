@@ -9,4 +9,7 @@ frontend/.angular/
 storage/documents/*
 storage/cells/*
 storage/exports/*
-
+.idea/
+backend-dev.log
+backend/$log
+backend/`$log`
