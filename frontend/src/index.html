@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+  <html lang="ru">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ICR Platform Demo</title>
+      <title>Демо платформы ICR</title>
     <style>
       :root {
         font-family: Arial, Helvetica, sans-serif;
@@ -72,72 +72,72 @@
   </head>
   <body>
     <div class="wrap">
-      <h1>ICR Platform Demo</h1>
+      <h1>Демо платформы ICR</h1>
       <div class="card">
         <div class="row">
-          <label for="apiBase">API base</label>
+          <label for="apiBase">Базовый URL API</label>
           <input id="apiBase" value="http://localhost:4000/api" />
         </div>
         <div class="row">
-          <label for="loginInput">Login</label>
+          <label for="loginInput">Логин</label>
           <input id="loginInput" value="admin" />
         </div>
         <div class="row">
-          <label for="passwordInput">Password</label>
+          <label for="passwordInput">Пароль</label>
           <input id="passwordInput" value="admin123" type="password" />
         </div>
         <div class="btn-row">
-          <button id="btnLogin">Login</button>
-          <button id="btnCreateSample" disabled>Create sample flow</button>
-          <button id="btnCreateFromScreenshot" disabled>Use root screenshot</button>
-          <button id="btnVerifyAll" disabled>Verify all cells</button>
-          <button id="btnRefreshCells" disabled>Load cells</button>
-          <a href="/health">Frontend health</a>
+          <button id="btnLogin">Войти</button>
+          <button id="btnCreateSample" disabled>Создать тестовый поток</button>
+          <button id="btnCreateFromScreenshot" disabled>Использовать скриншот из корня</button>
+          <button id="btnVerifyAll" disabled>Подтвердить все ячейки</button>
+          <button id="btnRefreshCells" disabled>Загрузить ячейки</button>
+          <a href="/health">Проверка фронтенда</a>
         </div>
-        <p><strong>Token:</strong> <span id="tokenInfo">not logged</span></p>
-        <p><strong>Status:</strong> <span id="status">idle</span></p>
+        <p><strong>Токен:</strong> <span id="tokenInfo">не авторизован</span></p>
+        <p><strong>Статус:</strong> <span id="status">ожидание</span></p>
       </div>
 
       <div class="card">
-        <h3>Demo state</h3>
+        <h3>Состояние демо</h3>
         <div class="row">
-          <label>formId</label>
+          <label>Идентификатор формы</label>
           <span id="formId">-</span>
         </div>
         <div class="row">
-          <label>documentId</label>
+          <label>Идентификатор документа</label>
           <span id="documentId">-</span>
         </div>
         <div class="row">
-          <label>jobId</label>
+          <label>Идентификатор задания</label>
           <span id="jobId">-</span>
         </div>
       </div>
 
       <div class="card">
-        <h3>Template preview</h3>
+        <h3>Предпросмотр шаблона</h3>
         <div class="row">
-          <label for="templateImageInput">Template path</label>
+          <label for="templateImageInput">Путь к шаблону</label>
           <input id="templateImageInput" value="screenshot-2019-12-16-at-01-23-20-1-.png" />
         </div>
         <div class="btn-row">
-          <button id="btnPreviewTemplateImage">Preview template</button>
-          <a id="templateImageLink" target="_blank" rel="noreferrer">Open original</a>
+          <button id="btnPreviewTemplateImage">Показать шаблон</button>
+          <a id="templateImageLink" target="_blank" rel="noreferrer">Открыть оригинал</a>
         </div>
-        <p><span id="templateImageStatus">not set</span></p>
+        <p><span id="templateImageStatus">не задано</span></p>
         <img id="templateImage" alt="template preview" style="max-width:100%;max-height:280px;border:1px solid #dbe3ff;border-radius:8px;display:none;" />
       </div>
 
       <div class="card">
-        <h3>Recognition cells</h3>
+        <h3>Распознанные ячейки</h3>
         <table>
           <thead>
             <tr>
-              <th>Cell</th>
-              <th>Model symbol</th>
-              <th>Confidence</th>
-              <th>Alternatives</th>
-              <th>Action</th>
+              <th>Ячейка</th>
+              <th>Модельный символ</th>
+              <th>Уверенность</th>
+              <th>Альтернативы</th>
+              <th>Действие</th>
             </tr>
           </thead>
           <tbody id="cellsBody"></tbody>
@@ -145,7 +145,7 @@
       </div>
 
       <div class="card">
-        <h3>Log</h3>
+        <h3>Лог</h3>
         <textarea class="mono" id="log" readonly></textarea>
       </div>
     </div>
@@ -234,8 +234,8 @@
         preview.src = url;
         preview.style.display = 'block';
         link.href = url;
-        link.textContent = 'Open original';
-        status.textContent = `Image: ${url}`;
+        link.textContent = 'Открыть оригинал';
+        status.textContent = `Изображение: ${url}`;
       }
 
       function candidateSymbols(cell) {
@@ -269,9 +269,9 @@
             <td>${cell.recognized_value || ''}</td>
             <td>${cell.confidence || ''}</td>
             <td>${alternatives
-              .map((item, idx) => `<button data-cell="${cell.id}" data-symbol="${item.symbol}" data-index="${idx}">${item.symbol}</button>`)
+            .map((item, idx) => `<button data-cell="${cell.id}" data-symbol="${item.symbol}" data-index="${idx}">${item.symbol}</button>`)
               .join(' ')}</td>
-            <td><input data-cell-input="${cell.id}" placeholder="custom" /> <button data-verify="${cell.id}">verify</button></td>
+            <td><input data-cell-input="${cell.id}" placeholder="ручной ввод" /> <button data-verify="${cell.id}">подтвердить</button></td>
           `;
           body.appendChild(tr);
         });
@@ -301,16 +301,16 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ verifiedSymbol: symbol, actionType: 'CORRECTED' })
             });
-            log('Verified', updated);
+            log('Ячейка подтверждена', updated);
             await refreshCells();
           } catch (error) {
-            log('Verify error', error.message);
+            log('Ошибка подтверждения ячейки', error.message);
           }
         });
       }
 
       async function login() {
-        status('logging in');
+          status('выполняется вход');
         const login = $('loginInput').value.trim();
         const password = $('passwordInput').value.trim();
         const data = await requestJson('/auth/login', {
@@ -325,19 +325,19 @@
         $('btnVerifyAll').disabled = true;
         $('btnRefreshCells').disabled = true;
         showTemplateImage($('templateImageInput').value || 'screenshot-2019-12-16-at-01-23-20-1-.png');
-        status('logged');
-        log('Logged in', data.user);
+        status('выполнен вход');
+        log('Успешный вход', data.user);
       }
 
       async function createSampleFormAndDocument() {
         setBusy(true);
         try {
-          status('creating sample form');
+          status('создание демо-формы');
           const form = await requestJson('/forms', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              name: 'Demo form',
+              name: 'Демо форма',
               version: '1.0',
               description: 'auto-generated for demo',
               fields: [
@@ -364,10 +364,10 @@
             })
           });
           state.formId = form.id;
-          log('Form created', form);
+          log('Форма создана', form);
           paintState();
 
-          status('creating document');
+          status('создание документа');
           const blob = new Blob(['demo-file-content'], { type: 'image/png' });
           const sampleFile = new File([blob], `demo-${Date.now()}.png`, { type: 'image/png' });
           const fd = new FormData();
@@ -383,29 +383,29 @@
           try {
             doc = docText ? JSON.parse(docText) : null;
           } catch {
-            throw new Error(`Invalid upload response: ${docText || docRes.statusText}`);
+            throw new Error(`Некорректный ответ загрузки: ${docText || docRes.statusText}`);
           }
           if (!docRes.ok) {
             throw new Error(doc?.message || `${docRes.status} ${docRes.statusText}`);
           }
           state.documentId = doc.id;
           paintState();
-          log('Document uploaded', doc);
+          log('Документ загружен', doc);
 
-          status('starting recognition');
+          status('запуск распознавания');
           const jobRes = await requestJson(`/documents/${state.documentId}/recognize`, {
             method: 'POST'
           });
           state.jobId = jobRes.jobId || jobRes.id || null;
           paintState();
-          log('Recognition job', jobRes);
+          log('Задание распознавания', jobRes);
           await refreshCells();
           $('btnVerifyAll').disabled = false;
           $('btnRefreshCells').disabled = false;
-          status('ready');
+          status('готово');
         } catch (error) {
-          log('Flow error', error.message);
-          status('error');
+          log('Ошибка потока', error.message);
+          status('ошибка');
         } finally {
           setBusy(false);
         }
@@ -416,12 +416,12 @@
         try {
           const screenshotName = $('templateImageInput').value.trim() || 'screenshot-2019-12-16-at-01-23-20-1-.png';
           const imageUrl = getTemplateImageUrl(screenshotName);
-          status('creating sample form from screenshot');
+          status('создание формы по скриншоту');
           const form = await requestJson('/forms', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              name: 'Template from screenshot',
+              name: 'Шаблон со скриншота',
               version: '1.0',
               description: 'auto-generated for demo',
               template: {
@@ -443,13 +443,13 @@
             })
           });
           state.formId = form.id;
-          log('Form created', form);
+          log('Форма создана', form);
           paintState();
 
-          status('creating document');
+          status('создание документа');
           const screenshotResponse = await fetch(imageUrl);
           if (!screenshotResponse.ok) {
-            throw new Error(`Cannot load screenshot: ${screenshotResponse.status} ${screenshotResponse.statusText}`);
+          throw new Error(`Не удалось загрузить скриншот: ${screenshotResponse.status} ${screenshotResponse.statusText}`);
           }
           const screenshotBlob = await screenshotResponse.blob();
           const sampleFile = new File([screenshotBlob], screenshotName, {
@@ -468,29 +468,29 @@
           try {
             doc = docText ? JSON.parse(docText) : null;
           } catch {
-            throw new Error(`Invalid upload response: ${docText || docRes.statusText}`);
+            throw new Error(`Некорректный ответ загрузки: ${docText || docRes.statusText}`);
           }
           if (!docRes.ok) {
             throw new Error(doc?.message || `${docRes.status} ${docRes.statusText}`);
           }
           state.documentId = doc.id;
           paintState();
-          log('Document uploaded', doc);
+          log('Документ загружен', doc);
 
-          status('starting recognition');
+          status('запуск распознавания');
           const jobRes = await requestJson(`/documents/${state.documentId}/recognize`, {
             method: 'POST'
           });
           state.jobId = jobRes.jobId || jobRes.id || null;
           paintState();
-          log('Recognition job', jobRes);
+          log('Задание распознавания', jobRes);
           await refreshCells();
           $('btnVerifyAll').disabled = false;
           $('btnRefreshCells').disabled = false;
-          status('ready');
+          status('готово');
         } catch (error) {
-          log('Screenshot flow error', error.message);
-          status('error');
+          log('Ошибка потока скриншота', error.message);
+          status('ошибка');
         } finally {
           setBusy(false);
         }
@@ -508,11 +508,11 @@
         state.cells = Array.isArray(cells) ? cells : [];
         renderCells();
         if (!state.cells.length) {
-          status(`job #${jobInfo.id || state.jobId}: ${jobStatus} (no cells)`);
-          log(`No cells for job #${jobInfo.id || state.jobId}; possible reason: form has no configured cells.`);
+          status(`задание #${jobInfo.id || state.jobId}: ${jobStatus} (нет ячеек)`);
+          log(`Нет ячеек для задания #${jobInfo.id || state.jobId}; возможная причина: в форме не настроены ячейки.`);
         } else {
-          status(`job #${jobInfo.id || state.jobId}: ${jobStatus}`);
-          log(`Loaded ${state.cells.length} cells`);
+          status(`задание #${jobInfo.id || state.jobId}: ${jobStatus}`);
+          log(`Загружено ${state.cells.length} ячеек`);
         }
         paintState();
       }
@@ -534,15 +534,15 @@
         }
         await refreshCells();
         const remaining = state.cells.filter((item) => item.status === 'NEW' || item.status === 'PENDING');
-        status(remaining.length ? `pending: ${remaining.length}` : 'all cells verified');
+        status(remaining.length ? `в ожидании: ${remaining.length}` : 'все ячейки подтверждены');
       }
 
       $('btnLogin').addEventListener('click', login);
       $('btnCreateSample').addEventListener('click', createSampleFormAndDocument);
       $('btnCreateFromScreenshot').addEventListener('click', createSampleFromScreenshot);
       $('btnPreviewTemplateImage').addEventListener('click', () => showTemplateImage($('templateImageInput').value));
-      $('btnRefreshCells').addEventListener('click', () => refreshCells().catch((e) => log('Refresh error', e.message)));
-      $('btnVerifyAll').addEventListener('click', () => verifyAll().catch((e) => log('Verify all error', e.message)));
+      $('btnRefreshCells').addEventListener('click', () => refreshCells().catch((e) => log('Ошибка загрузки ячеек', e.message)));
+      $('btnVerifyAll').addEventListener('click', () => verifyAll().catch((e) => log('Ошибка подтверждения всех', e.message)));
       attachCellActions();
     </script>
   </body>
