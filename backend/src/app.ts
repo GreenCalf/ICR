@@ -22,6 +22,7 @@ export function createApp() {
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
   app.use('/uploads', express.static(path.resolve(env.storageRoot, 'documents')));
+  app.use('/storage', express.static(path.resolve(env.storageRoot)));
 
   app.get('/health', (_req, res) => {
     res.json({ ok: true });

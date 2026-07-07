@@ -125,6 +125,19 @@ documentsRouter.post('/:id/recognize', async (req, res) => {
     return res.status(400).json({ message: 'id is required' });
   }
 
+  const docRes = await pool.query(
+    `SELECT id, form_id, status FROM documents WHERE id=$1`,
+    [documentId]
+  );
+  if (!docRes.rows.length) {
+    return res.status(404).json({ message: 'Document not found' });
+  }
+
+  const documentRow = docRes.rows[0];
+  if (!documentRow.form_id) {
+    return res.status(400).json({ message: 'Document has no template form' });
+  }
+
   const existing = await pool.query(
     `SELECT id, status
        FROM recognition_jobs
@@ -134,7 +147,7 @@ documentsRouter.post('/:id/recognize', async (req, res) => {
     [documentId]
   );
 
-  if (existing.rows.length && ['NEW', 'PROCESSING'].includes(existing.rows[0].status)) {
+  if (existing.rows.length && ['NEW', 'PROCESSING', 'RECOGNIZED', 'CHECKING'].includes(existing.rows[0].status)) {
     return res.status(200).json({
       jobId: existing.rows[0].id,
       documentId,
@@ -142,23 +155,80 @@ documentsRouter.post('/:id/recognize', async (req, res) => {
     });
   }
 
-  const inserted = await pool.query(
-    `INSERT INTO recognition_jobs (document_id, status, created_by)
-     VALUES ($1, 'NEW', $2)
-     RETURNING id, document_id, status`,
-    [documentId, req.user?.id || null]
-  );
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const inserted = await client.query(
+      `INSERT INTO recognition_jobs (document_id, status, created_by)
+       VALUES ($1, 'PROCESSING', $2)
+       RETURNING id, document_id, status`,
+      [documentId, req.user?.id || null]
+    );
+    const jobId = inserted.rows[0].id as number;
 
-  await pool.query(
-    `UPDATE documents SET status='PROCESSING' WHERE id=$1`,
-    [documentId]
-  );
+    const cellsRes = await client.query(
+      `SELECT id, position_x, position_y
+         FROM cells
+        WHERE form_id=$1
+        ORDER BY id ASC`,
+      [documentRow.form_id]
+    );
+    if (!cellsRes.rows.length) {
+      await client.query(
+        `UPDATE recognition_jobs SET status='COMPLETED', completed_at=NOW() WHERE id=$1`,
+        [jobId]
+      );
+      await client.query(
+        `UPDATE documents SET status='COMPLETED' WHERE id=$1`,
+        [documentId]
+      );
+      await client.query('COMMIT');
+      return res.status(201).json({
+        jobId: inserted.rows[0].id,
+        documentId: inserted.rows[0].document_id,
+        status: inserted.rows[0].status
+      });
+    }
 
-  return res.status(201).json({
-    jobId: inserted.rows[0].id,
-    documentId: inserted.rows[0].document_id,
-    status: 'PENDING'
-  });
+    for (const cell of cellsRes.rows) {
+      const mockChar = String.fromCharCode(1040 + (Number(cell.id) % 6));
+      const candidates = [
+        { symbol: mockChar, confidence: 0.84 },
+        { symbol: String.fromCharCode(1040 + ((Number(cell.id) + 1) % 6)), confidence: 0.66 }
+      ];
+      await client.query(
+        `INSERT INTO recognition_cells
+          (recognition_job_id, form_cell_id, recognized_value, candidate_values, confidence, status)
+         VALUES ($1, $2, $3, $4, $5, 'PENDING')`,
+        [jobId, Number(cell.id), mockChar, JSON.stringify(candidates), 0.84]
+      );
+    }
+
+    await client.query(
+      `UPDATE documents SET status='PROCESSING' WHERE id=$1`,
+      [documentId]
+    );
+    await client.query(
+      `UPDATE recognition_jobs SET status='CHECKING' WHERE id=$1`,
+      [jobId]
+    );
+    await client.query(
+      `UPDATE documents SET status='CHECKING' WHERE id=$1`,
+      [documentId]
+    );
+    await client.query('COMMIT');
+
+    return res.status(201).json({
+      jobId,
+      documentId,
+      status: 'PENDING'
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 });
 
 documentsRouter.patch('/:id/status', async (req, res) => {

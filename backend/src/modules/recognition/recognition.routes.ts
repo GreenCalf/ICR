@@ -56,17 +56,56 @@ recognitionRouter.post('/', async (req, res) => {
     [documentId]
   );
   if (!docRows.length) return res.status(404).json({ message: 'Document not found' });
-
-  const { rows } = await pool.query(
-    `INSERT INTO recognition_jobs (document_id, status, created_by)
-     VALUES ($1, 'NEW', $2) RETURNING id, document_id, status, created_at`,
-    [documentId, req.user?.id || null]
+  const formId = docRows.rows[0].form_id;
+  const cellsRes = await pool.query(
+    `SELECT id FROM cells WHERE form_id=$1 ORDER BY id ASC`,
+    [formId]
   );
 
-  await pool.query(
-    `UPDATE documents SET status='PROCESSING' WHERE id=$1`,
-    [documentId]
-  );
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `INSERT INTO recognition_jobs (document_id, status, created_by)
+       VALUES ($1, 'PROCESSING', $2)
+       RETURNING id, document_id, status, created_at`,
+      [documentId, req.user?.id || null]
+    );
+    const jobId = rows[0].id as number;
 
-  res.status(201).json(rows[0]);
+    for (const row of cellsRes.rows) {
+      const mockChar = String.fromCharCode(1040 + (Number(row.id) % 6));
+      const candidates = [
+        { symbol: mockChar, confidence: 0.84 },
+        { symbol: String.fromCharCode(1040 + ((Number(row.id) + 2) % 6)), confidence: 0.56 }
+      ];
+      await client.query(
+        `INSERT INTO recognition_cells
+         (recognition_job_id, form_cell_id, recognized_value, candidate_values, confidence, status)
+         VALUES ($1, $2, $3, $4, $5, 'PENDING')`,
+        [jobId, row.id, mockChar, JSON.stringify(candidates), 0.84]
+      );
+    }
+
+    if (!cellsRes.rows.length) {
+      await client.query(`UPDATE recognition_jobs SET status='COMPLETED', completed_at=NOW() WHERE id=$1`, [jobId]);
+      await client.query(`UPDATE documents SET status='COMPLETED' WHERE id=$1`, [documentId]);
+      await client.query('COMMIT');
+      return res.status(201).json(rows[0]);
+    }
+
+    await client.query(`UPDATE recognition_jobs SET status='CHECKING' WHERE id=$1`, [jobId]);
+    await client.query(`UPDATE documents SET status='CHECKING' WHERE id=$1`, [documentId]);
+    await client.query('COMMIT');
+    res.status(201).json({
+      id: rows[0].id,
+      document_id: rows[0].document_id,
+      status: 'PENDING'
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 });
