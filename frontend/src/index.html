@@ -335,23 +335,33 @@
       }
 
       async function login() {
+        setBusy(true);
+        try {
           status('выполняется вход');
-        const login = $('loginInput').value.trim();
-        const password = $('passwordInput').value.trim();
-        const data = await requestJson('/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ login, password })
-        });
-        state.token = data.token || '';
-        $('tokenInfo').textContent = `${data.user?.login || login} (${state.token.slice(0, 8)}...)`;
-        $('btnCreateSample').disabled = false;
-        $('btnCreateFromScreenshot').disabled = false;
-        $('btnVerifyAll').disabled = true;
-        $('btnRefreshCells').disabled = true;
-        showTemplateImage($('templateImageInput').value || 'screenshot-2019-12-16-at-01-23-20-1-.png');
-        status('выполнен вход');
-        log('Успешный вход', data.user);
+          const login = $('loginInput').value.trim();
+          const password = $('passwordInput').value.trim();
+          const data = await requestJson('/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login, password })
+          });
+          state.token = data.token || '';
+          $('tokenInfo').textContent = `${data.user?.login || login} (${state.token.slice(0, 8)}...)`;
+          $('btnCreateSample').disabled = false;
+          $('btnCreateFromScreenshot').disabled = false;
+          $('btnVerifyAll').disabled = true;
+          $('btnRefreshCells').disabled = true;
+          showTemplateImage($('templateImageInput').value || 'screenshot-2019-12-16-at-01-23-20-1-.png');
+          status('выполнен вход');
+          log('Успешный вход', data.user);
+        } catch (error) {
+          state.token = '';
+          $('tokenInfo').textContent = 'не авторизован';
+          status('ошибка входа');
+          log('Ошибка входа', error.message);
+        } finally {
+          setBusy(false);
+        }
       }
 
       async function createSampleFormAndDocument() {
