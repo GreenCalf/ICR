@@ -67,6 +67,12 @@ Returns:
 - `completed` (count of `COMPLETED + EXPORTED`)
 - `progressPercent`
 
+`GET /api/batches/:id` now also includes:
+- `totalDocuments`
+- `statusCounts`
+- `completed`
+- `progressPercent`
+
 Batch status API (`PATCH /api/batches/:id/status`) accepts only:
 
 - `NEW` → `ASSIGNED`, `IN_PROGRESS`, `CLOSED`
