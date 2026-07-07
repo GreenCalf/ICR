@@ -1,9 +1,131 @@
 import { Router } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { pool } from '../../config/db';
+import { env } from '../../config/env';
 import { requireAuth } from '../../middleware/auth';
+
+type ExportStatus = 'NEW' | 'COMPLETED' | 'FAILED';
+type ExportFormat = 'CSV' | 'JSON' | 'XML' | 'API' | 'XLSX';
+
+interface ExportJob {
+  id: number;
+  batchId: number;
+  format: ExportFormat;
+  status: ExportStatus;
+  createdAt: string;
+  fileName?: string;
+  path?: string;
+}
+
+const exportJobs = new Map<number, ExportJob>();
+let exportJobCounter = 1;
 
 export const exportsRouter = Router();
 exportsRouter.use(requireAuth);
+
+exportsRouter.post('/', async (req, res) => {
+  const batchId = Number(req.body.batchId || 0);
+  const format = String(req.body.format || 'JSON').toUpperCase() as ExportFormat;
+  const allowedFormats: ExportFormat[] = ['CSV', 'JSON', 'XML', 'API', 'XLSX'];
+
+  if (!batchId) {
+    return res.status(400).json({ message: 'batchId is required' });
+  }
+  if (!allowedFormats.includes(format)) {
+    return res.status(400).json({ message: 'unsupported format' });
+  }
+
+  const batchRows = await pool.query('SELECT id, status FROM batches WHERE id=$1', [batchId]);
+  if (!batchRows.rows.length) {
+    return res.status(404).json({ message: 'Batch not found' });
+  }
+
+  const jobId = exportJobCounter++;
+  const createdAt = new Date().toISOString();
+  const job: ExportJob = {
+    id: jobId,
+    batchId,
+    format,
+    status: 'NEW',
+    createdAt
+  };
+  exportJobs.set(jobId, job);
+
+  try {
+    const documents = await pool.query(
+      `SELECT d.id FROM batch_documents bd
+         JOIN documents d ON d.id = bd.document_id
+        WHERE bd.batch_id=$1
+        ORDER BY d.id ASC`,
+      [batchId]
+    );
+
+    const payload = [];
+    for (const row of documents.rows) {
+      const data = await getDocumentExport(row.id);
+      if (data) {
+        payload.push(data);
+      }
+      if (data) {
+        await markDocumentExported(row.id);
+      }
+    }
+
+  if (format === 'CSV') {
+      const csvRows = ['batch_id,document_id,field_code,recognized_value,confidence'];
+      for (const doc of payload) {
+        for (const r of doc.rows) {
+          const line = [
+            batchId,
+            doc.documentId,
+            r.field_code || '',
+            r.recognized_value || '',
+            r.confidence ?? ''
+          ]
+            .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+            .join(',');
+          csvRows.push(line);
+        }
+      }
+      const exportPath = path.resolve(env.storageRoot, 'exports', `export-${jobId}.csv`);
+      await fs.promises.mkdir(path.dirname(exportPath), { recursive: true });
+      await fs.promises.writeFile(exportPath, csvRows.join('\r\n'), 'utf8');
+      job.fileName = `export-${jobId}.csv`;
+      job.path = exportPath;
+  } else if (format === 'XML') {
+      const xml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        `<batch id="${batchId}">`,
+        ...payload.map((doc: any) => {
+          const rows = doc.rows.map((r: any) => `    <field code="${r.field_code || ''}" confidence="${r.confidence ?? ''}"><value>${r.recognized_value || ''}</value></field>`).join('');
+          return `  <document id="${doc.documentId}">${rows}</document>`;
+        }),
+        '</batch>'
+      ].join('\n');
+      const exportPath = path.resolve(env.storageRoot, 'exports', `export-${jobId}.xml`);
+      await fs.promises.mkdir(path.dirname(exportPath), { recursive: true });
+      await fs.promises.writeFile(exportPath, xml, 'utf8');
+      job.fileName = `export-${jobId}.xml`;
+      job.path = exportPath;
+    } else {
+      job.fileName = `export-${jobId}.json`;
+      const exportPath = path.resolve(env.storageRoot, 'exports', `export-${jobId}.json`);
+      await fs.promises.mkdir(path.dirname(exportPath), { recursive: true });
+      await fs.promises.writeFile(exportPath, JSON.stringify({ batchId, rows: payload }, null, 2), 'utf8');
+      job.path = exportPath;
+    }
+
+    job.status = 'COMPLETED';
+    return res.status(201).json({
+      exportId: job.id,
+      status: job.status
+    });
+  } catch (error) {
+    job.status = 'FAILED';
+    return res.status(500).json({ message: 'Export failed' });
+  }
+});
 
 exportsRouter.get('/documents/:documentId/json', async (req, res) => {
   const documentId = Number(req.params.documentId);
@@ -26,6 +148,17 @@ exportsRouter.get('/documents/:documentId/csv', async (req, res) => {
   res.header('Content-Type', 'text/csv');
   res.attachment(`document-${documentId}-export.csv`);
   res.send(csv);
+});
+
+exportsRouter.get('/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ message: 'id is required' });
+
+  const job = exportJobs.get(id);
+  if (!job) {
+    return res.status(404).json({ message: 'Export not found' });
+  }
+  return res.json(job);
 });
 
 async function finalizeBatchIfDone(documentId: number) {
