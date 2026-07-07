@@ -42,6 +42,16 @@ Document status API (`PATCH /api/documents/:id/status`) accepts only these trans
 - `COMPLETED` → `EXPORTED`
 - `ERROR` → `NEW`
 
+Current status helper endpoints:
+
+- `GET /api/documents/:id/allowed-statuses`
+- `GET /api/batches/:id/allowed-statuses`
+
+Each returns:
+
+- `current` — текущий статус
+- `allowedTransitions` — массив разрешённых статусов с текущим в первой позиции (включая no-op)
+
 Batch status API (`PATCH /api/batches/:id/status`) accepts only:
 
 - `NEW` → `ASSIGNED`, `IN_PROGRESS`, `CLOSED`

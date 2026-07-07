@@ -85,6 +85,9 @@ documentsRouter.post('/', upload.single('file'), async (req, res) => {
 
 documentsRouter.patch('/:id/status', async (req, res) => {
   const id = Number(req.params.id);
+  if (!id) {
+    return res.status(400).json({ message: 'id is required' });
+  }
   const status = String(req.body.status || '').trim();
   const allowed = ['NEW', 'PROCESSING', 'RECOGNIZED', 'CHECKING', 'COMPLETED', 'EXPORTED', 'ERROR'];
   if (!allowed.includes(status)) {
@@ -108,4 +111,23 @@ documentsRouter.patch('/:id/status', async (req, res) => {
   );
   if (!rows.length) return res.status(404).json({ message: 'Not found' });
   res.json(rows[0]);
+});
+
+documentsRouter.get('/:id/allowed-statuses', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) {
+    return res.status(400).json({ message: 'id is required' });
+  }
+
+  const currentRes = await pool.query('SELECT status FROM documents WHERE id=$1', [id]);
+  if (!currentRes.rows.length) {
+    return res.status(404).json({ message: 'Not found' });
+  }
+
+  const status = currentRes.rows[0].status as DocumentStatus;
+  const allowed = documentStatusTransitions[status] ?? [];
+  return res.json({
+    current: status,
+    allowedTransitions: [status, ...allowed]
+  });
 });

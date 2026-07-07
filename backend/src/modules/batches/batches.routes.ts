@@ -156,6 +156,25 @@ batchesRouter.patch('/:id/status', requireRole(['ADMIN']), async (req, res) => {
   return res.json(rows[0]);
 });
 
+batchesRouter.get('/:id/allowed-statuses', requireRole(['ADMIN']), async (req, res) => {
+  const batchId = Number(req.params.id);
+  if (!batchId) {
+    return res.status(400).json({ message: 'id is required' });
+  }
+
+  const currentRes = await pool.query('SELECT status FROM batches WHERE id=$1', [batchId]);
+  if (!currentRes.rows.length) {
+    return res.status(404).json({ message: 'Batch not found' });
+  }
+
+  const status = currentRes.rows[0].status as BatchStatus;
+  const allowed = batchStatusTransitions[status] ?? [];
+  return res.json({
+    current: status,
+    allowedTransitions: [status, ...allowed]
+  });
+});
+
 batchesRouter.post('/:id/enqueue', requireRole(['OPERATOR', 'SUPERVISOR', 'ADMIN']), async (req, res) => {
   const batchId = Number(req.params.id);
   if (!batchId) {
