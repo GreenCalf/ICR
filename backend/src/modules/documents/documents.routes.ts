@@ -42,9 +42,37 @@ function isDocumentTransitionAllowed(from: string, to: DocumentStatus): boolean 
 }
 
 documentsRouter.get('/', async (req, res) => {
+  const status = String(req.query.status || '').trim().toUpperCase();
+  const templateId = Number(req.query.templateId || req.query.formId || 0);
+  const page = Number(req.query.page || 1);
+  const limit = Number(req.query.limit || 50);
+
+  const pageNum = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+  const limitNum = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 200) : 50;
+  const offset = (pageNum - 1) * limitNum;
+
+  const conditions: string[] = [];
+  const params: any[] = [];
+
+  if (status) {
+    params.push(status);
+    conditions.push(`status=$${params.length}`);
+  }
+  if (templateId > 0) {
+    params.push(templateId);
+    conditions.push(`form_id=$${params.length}`);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  params.push(limitNum, offset);
+
   const { rows } = await pool.query(
     `SELECT id, filename, original_name, form_id, status, created_by, created_at
-     FROM documents ORDER BY id DESC`
+     FROM documents
+     ${where}
+     ORDER BY id DESC
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
   );
   res.json(rows);
 });
