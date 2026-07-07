@@ -3,14 +3,388 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ICR Platform</title>
+    <title>ICR Platform Demo</title>
+    <style>
+      :root {
+        font-family: Arial, Helvetica, sans-serif;
+        color: #0f172a;
+      }
+      body {
+        margin: 0;
+        padding: 20px;
+        background: #f5f8ff;
+      }
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        display: grid;
+        gap: 12px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 10px;
+        padding: 12px;
+        border: 1px solid #dbe3ff;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      button {
+        cursor: pointer;
+        padding: 8px 12px;
+        border: 1px solid #1f4fd8;
+        background: #2563eb;
+        color: #fff;
+        border-radius: 8px;
+      }
+      button:disabled {
+        opacity: .55;
+        cursor: not-allowed;
+      }
+      .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 120px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        border-bottom: 1px solid #e5e7eb;
+        padding: 6px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .mono {
+        font-family: "Consolas", monospace;
+        font-size: 12px;
+      }
+    </style>
   </head>
   <body>
-    <h1>ICR Platform</h1>
-    <p>Frontend placeholder. Backend API now has endpoints for auth/forms/documents/recognition/exports.</p>
-    <ul>
-      <li><a href="/health">Health</a></li>
-    </ul>
+    <div class="wrap">
+      <h1>ICR Platform Demo</h1>
+      <div class="card">
+        <div class="row">
+          <label for="apiBase">API base</label>
+          <input id="apiBase" value="http://localhost:4000/api" />
+        </div>
+        <div class="row">
+          <label for="loginInput">Login</label>
+          <input id="loginInput" value="admin" />
+        </div>
+        <div class="row">
+          <label for="passwordInput">Password</label>
+          <input id="passwordInput" value="admin123" type="password" />
+        </div>
+        <div class="btn-row">
+          <button id="btnLogin">Login</button>
+          <button id="btnCreateSample" disabled>Create sample flow</button>
+          <button id="btnVerifyAll" disabled>Verify all cells</button>
+          <button id="btnRefreshCells" disabled>Refresh cells</button>
+          <a href="/health">Frontend health</a>
+        </div>
+        <p><strong>Token:</strong> <span id="tokenInfo">not logged</span></p>
+        <p><strong>Status:</strong> <span id="status">idle</span></p>
+      </div>
+
+      <div class="card">
+        <h3>Demo state</h3>
+        <div class="row">
+          <label>formId</label>
+          <span id="formId">-</span>
+        </div>
+        <div class="row">
+          <label>documentId</label>
+          <span id="documentId">-</span>
+        </div>
+        <div class="row">
+          <label>jobId</label>
+          <span id="jobId">-</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Recognition cells</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Cell</th>
+              <th>Model symbol</th>
+              <th>Confidence</th>
+              <th>Alternatives</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="cellsBody"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Log</h3>
+        <textarea class="mono" id="log" readonly></textarea>
+      </div>
+    </div>
+
+    <script>
+      const state = {
+        token: '',
+        formId: null,
+        documentId: null,
+        jobId: null,
+        cells: []
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const log = (...args) => {
+        const line = args.map((item) => (typeof item === 'string' ? item : JSON.stringify(item))).join(' ');
+        $('log').value += `${new Date().toLocaleTimeString()} - ${line}\n`;
+        $('log').scrollTop = $('log').scrollHeight;
+      };
+      const status = (txt) => $('status').textContent = txt;
+
+      function apiBase() {
+        return $('apiBase').value.replace(/\/$/, '');
+      }
+
+      function headers() {
+        return state.token ? { Authorization: `Bearer ${state.token}` } : {};
+      }
+
+      async function requestJson(path, options = {}) {
+        const res = await fetch(`${apiBase()}${path}`, {
+          ...options,
+          headers: {
+            ...headers(),
+            ...(options.headers || {})
+          }
+        });
+        const text = await res.text();
+        let body = null;
+        try {
+          body = text ? JSON.parse(text) : null;
+        } catch {
+          body = text;
+        }
+        if (!res.ok) {
+          throw new Error(body?.message || `${res.status} ${res.statusText}`);
+        }
+        return body;
+      }
+
+      function paintState() {
+        $('formId').textContent = state.formId || '-';
+        $('documentId').textContent = state.documentId || '-';
+        $('jobId').textContent = state.jobId || '-';
+      }
+
+      function setBusy(flag) {
+        const disabled = !!flag;
+        ['btnCreateSample', 'btnVerifyAll', 'btnRefreshCells', 'btnLogin'].forEach((id) => {
+          if (id === 'btnLogin' && !disabled) return;
+          $(id).disabled = disabled;
+        });
+      }
+
+      function candidateSymbols(cell) {
+        const candidates = Array.isArray(cell.candidate_values) ? cell.candidate_values : [];
+        if (!candidates.length) {
+          return [{ symbol: String(cell.recognized_value || '') }];
+        }
+        return candidates;
+      }
+
+      function renderCells() {
+        const body = $('cellsBody');
+        body.innerHTML = '';
+        state.cells.forEach((cell) => {
+          const tr = document.createElement('tr');
+          const alternatives = candidateSymbols(cell);
+          tr.innerHTML = `
+            <td>${cell.id}</td>
+            <td>${cell.recognized_value || ''}</td>
+            <td>${cell.confidence || ''}</td>
+            <td>${alternatives
+              .map((item, idx) => `<button data-cell="${cell.id}" data-symbol="${item.symbol}" data-index="${idx}">${item.symbol}</button>`)
+              .join(' ')}</td>
+            <td><input data-cell-input="${cell.id}" placeholder="custom" /> <button data-verify="${cell.id}">verify</button></td>
+          `;
+          body.appendChild(tr);
+        });
+      }
+
+      function attachCellActions() {
+        $('cellsBody').addEventListener('click', async (event) => {
+          const target = event.target;
+          if (!(target instanceof HTMLButtonElement)) return;
+          const verifyByCandidate = target.dataset.cell;
+          const verifyCellId = target.dataset.verify;
+          const cellId = Number(verifyByCandidate || verifyCellId);
+          if (!cellId) return;
+
+          let symbol = '';
+          if (verifyByCandidate) {
+            symbol = target.dataset.symbol || '';
+          } else if (verifyCellId) {
+            const input = $('cellsBody').querySelector(`input[data-cell-input="${cellId}"]`);
+            symbol = input?.value?.trim() || '';
+          }
+          if (!symbol) return;
+
+          try {
+            const updated = await requestJson(`/operator/cells/${cellId}/verify`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ verifiedSymbol: symbol, actionType: 'CORRECTED' })
+            });
+            log('Verified', updated);
+            await refreshCells();
+          } catch (error) {
+            log('Verify error', error.message);
+          }
+        });
+      }
+
+      async function login() {
+        status('logging in');
+        const login = $('loginInput').value.trim();
+        const password = $('passwordInput').value.trim();
+        const data = await requestJson('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login, password })
+        });
+        state.token = data.token || '';
+        $('tokenInfo').textContent = `${data.user?.login || login} (${state.token.slice(0, 8)}...)`;
+        $('btnCreateSample').disabled = false;
+        $('btnVerifyAll').disabled = true;
+        $('btnRefreshCells').disabled = true;
+        status('logged');
+        log('Logged in', data.user);
+      }
+
+      async function createSampleFormAndDocument() {
+        setBusy(true);
+        try {
+          status('creating sample form');
+          const form = await requestJson('/forms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: 'Demo form',
+              version: '1.0',
+              description: 'auto-generated for demo',
+              fields: [
+                {
+                  name: 'Фамилия',
+                  code: 'surname',
+                  dataType: 'text',
+                  required: true,
+                  cells: [
+                    { x: 0, y: 0, width: 100, height: 20, positionX: 1, positionY: 1 },
+                    { x: 0, y: 30, width: 100, height: 20, positionX: 2, positionY: 2 }
+                  ]
+                },
+                {
+                  name: 'Номер',
+                  code: 'docNo',
+                  dataType: 'text',
+                  required: true,
+                  cells: [
+                    { x: 0, y: 60, width: 120, height: 20, positionX: 3, positionY: 3 }
+                  ]
+                }
+              ]
+            })
+          });
+          state.formId = form.id;
+          log('Form created', form);
+          paintState();
+
+          status('creating document');
+          const blob = new Blob(['demo-file-content'], { type: 'image/png' });
+          const sampleFile = new File([blob], `demo-${Date.now()}.png`, { type: 'image/png' });
+          const fd = new FormData();
+          fd.append('formId', String(state.formId));
+          fd.append('file', sampleFile);
+          const docRes = await fetch(`${apiBase()}/documents`, {
+            method: 'POST',
+            headers: headers(),
+            body: fd
+          });
+          const docText = await docRes.text();
+          const doc = docText ? JSON.parse(docText) : null;
+          if (!docRes.ok) {
+            throw new Error(doc?.message || `${docRes.status} ${docRes.statusText}`);
+          }
+          state.documentId = doc.id;
+          paintState();
+          log('Document uploaded', doc);
+
+          status('starting recognition');
+          const jobRes = await requestJson(`/documents/${state.documentId}/recognize`, {
+            method: 'POST'
+          });
+          state.jobId = jobRes.jobId || jobRes.id || null;
+          paintState();
+          log('Recognition job', jobRes);
+          await refreshCells();
+          $('btnVerifyAll').disabled = false;
+          $('btnRefreshCells').disabled = false;
+          status('ready');
+        } catch (error) {
+          log('Flow error', error.message);
+          status('error');
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function refreshCells() {
+        if (!state.jobId) return;
+        const cells = await requestJson(`/recognition/jobs/${state.jobId}/cells`, {
+          method: 'GET'
+        });
+        state.cells = Array.isArray(cells) ? cells : [];
+        renderCells();
+        log(`Loaded ${state.cells.length} cells`);
+        paintState();
+      }
+
+      async function verifyAll() {
+        if (!state.cells.length) {
+          await refreshCells();
+        }
+        const pending = state.cells.filter((item) => item.status === 'NEW' || item.status === 'PENDING');
+        for (const cell of pending) {
+          const candidates = candidateSymbols(cell);
+          const symbol = candidates[0]?.symbol || '';
+          if (!symbol) continue;
+          await requestJson(`/operator/cells/${cell.id}/verify`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ verifiedSymbol: symbol, actionType: 'CORRECTED' })
+          });
+        }
+        await refreshCells();
+        const remaining = state.cells.filter((item) => item.status === 'NEW' || item.status === 'PENDING');
+        status(remaining.length ? `pending: ${remaining.length}` : 'all cells verified');
+      }
+
+      $('btnLogin').addEventListener('click', login);
+      $('btnCreateSample').addEventListener('click', createSampleFormAndDocument);
+      $('btnRefreshCells').addEventListener('click', () => refreshCells().catch((e) => log('Refresh error', e.message)));
+      $('btnVerifyAll').addEventListener('click', () => verifyAll().catch((e) => log('Verify all error', e.message)));
+      attachCellActions();
+    </script>
   </body>
 </html>
-
