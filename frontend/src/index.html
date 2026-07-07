@@ -238,6 +238,22 @@
         status.textContent = `Изображение: ${url}`;
       }
 
+      async function waitForJobCompletion(jobId, { timeoutMs = 45000, intervalMs = 700 } = {}) {
+        const jobInfo = async () => requestJson(`/recognition/jobs/${jobId}`, { method: 'GET' });
+        const terminalStatuses = new Set(['COMPLETED', 'FAILED', 'ERROR']);
+        const start = Date.now();
+        while (Date.now() - start < timeoutMs) {
+          const info = await jobInfo();
+          const currentStatus = String(info.status || 'UNKNOWN').toUpperCase();
+          status(`задание #${jobId}: ${currentStatus}`);
+          if (terminalStatuses.has(currentStatus)) {
+            return info;
+          }
+          await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        }
+        throw new Error('Превышено время ожидания завершения распознавания');
+      }
+
       function candidateSymbols(cell) {
         const candidateValues = cell.candidate_values;
         const candidates = Array.isArray(candidateValues)
@@ -399,6 +415,10 @@
           state.jobId = jobRes.jobId || jobRes.id || null;
           paintState();
           log('Задание распознавания', jobRes);
+          if (!state.jobId) {
+            throw new Error('Не получен идентификатор задания распознавания');
+          }
+          await waitForJobCompletion(state.jobId);
           await refreshCells();
           $('btnVerifyAll').disabled = false;
           $('btnRefreshCells').disabled = false;
@@ -484,6 +504,10 @@
           state.jobId = jobRes.jobId || jobRes.id || null;
           paintState();
           log('Задание распознавания', jobRes);
+          if (!state.jobId) {
+            throw new Error('Не получен идентификатор задания распознавания');
+          }
+          await waitForJobCompletion(state.jobId);
           await refreshCells();
           $('btnVerifyAll').disabled = false;
           $('btnRefreshCells').disabled = false;
