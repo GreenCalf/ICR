@@ -21,6 +21,7 @@
 
 3. Start backend:
 - `npm --prefix backend run dev`
+   - default port: `4000` (`http://localhost:4000`)
 
 4. Start recognition worker:
 - `npm --prefix recognition-worker run dev`
@@ -30,6 +31,11 @@
 
 Default admin (created automatically by backend at first launch if empty DB):  
 login `admin`, password `admin123`.
+
+Quick API checks:
+- `GET http://localhost:4000/health`
+- `GET http://localhost:4000/docs`
+- `GET http://localhost:4000/openapi.json`
 
 ## Status transition contract (backend-guarded)
 
