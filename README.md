@@ -57,6 +57,16 @@ Batch auto-closure:
 - If all documents in a batch reach final states (`COMPLETED` or `EXPORTED`), batch status is moved automatically to `COMPLETED` (from `IN_PROGRESS`).
 - Export endpoint updates document status from `COMPLETED` to `EXPORTED` on successful request.
 
+Batch progress API:
+
+- `GET /api/batches/:id/progress`
+
+Returns:
+- `totalDocuments`
+- `statusCounts` (by document status)
+- `completed` (count of `COMPLETED + EXPORTED`)
+- `progressPercent`
+
 Batch status API (`PATCH /api/batches/:id/status`) accepts only:
 
 - `NEW` → `ASSIGNED`, `IN_PROGRESS`, `CLOSED`

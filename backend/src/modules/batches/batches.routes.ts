@@ -175,6 +175,54 @@ batchesRouter.get('/:id/allowed-statuses', requireRole(['ADMIN']), async (req, r
   });
 });
 
+batchesRouter.get('/:id/progress', async (req, res) => {
+  const batchId = Number(req.params.id);
+  if (!batchId) {
+    return res.status(400).json({ message: 'id is required' });
+  }
+
+  const batch = await pool.query(
+    `SELECT id, name, status, created_at, created_by FROM batches WHERE id=$1`,
+    [batchId]
+  );
+  if (!batch.rows.length) {
+    return res.status(404).json({ message: 'Batch not found' });
+  }
+
+  const totalRes = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM batch_documents WHERE batch_id=$1`,
+    [batchId]
+  );
+  const total = Number(totalRes.rows[0].total);
+
+  const statusRes = await pool.query(
+    `SELECT d.status, COUNT(*)::int AS count
+       FROM batch_documents bd
+       JOIN documents d ON d.id = bd.document_id
+      WHERE bd.batch_id=$1
+      GROUP BY d.status`,
+    [batchId]
+  );
+  const statusCounts = statusRes.rows.reduce((acc, row: any) => {
+    acc[row.status] = Number(row.count);
+    return acc;
+  }, {} as Record<string, number>);
+
+  const finalCount = ['COMPLETED', 'EXPORTED'].reduce(
+    (acc, item) => acc + (statusCounts[item] || 0),
+    0
+  );
+  const progress = total ? Math.round((finalCount / total) * 100) : 0;
+
+  return res.json({
+    batch: batch.rows[0],
+    totalDocuments: total,
+    statusCounts,
+    completed: finalCount,
+    progressPercent: progress
+  });
+});
+
 batchesRouter.post('/:id/enqueue', requireRole(['OPERATOR', 'SUPERVISOR', 'ADMIN']), async (req, res) => {
   const batchId = Number(req.params.id);
   if (!batchId) {
