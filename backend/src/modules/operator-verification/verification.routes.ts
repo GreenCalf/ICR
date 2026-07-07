@@ -4,6 +4,32 @@ import { requireAuth, requireRole } from '../../middleware/auth';
 
 export const verificationRouter = Router();
 
+async function finalizeBatchIfDone(queryClient: typeof pool, documentId: number) {
+  const batchRows = await queryClient.query(
+    `SELECT DISTINCT bd.batch_id FROM batch_documents bd WHERE bd.document_id=$1`,
+    [documentId]
+  );
+
+  for (const row of batchRows.rows) {
+    const batchId = row.batch_id;
+    const pending = await queryClient.query(
+      `SELECT COUNT(*)::int AS pending_count
+         FROM batch_documents bd
+         JOIN documents d ON d.id = bd.document_id
+        WHERE bd.batch_id=$1 AND d.status NOT IN ('COMPLETED', 'EXPORTED')`,
+      [batchId]
+    );
+    if (Number(pending.rows[0].pending_count) === 0) {
+      await queryClient.query(
+        `UPDATE batches
+         SET status='COMPLETED'
+         WHERE id=$1 AND status='IN_PROGRESS'`,
+        [batchId]
+      );
+    }
+  }
+}
+
 verificationRouter.post(
   '/:id/verify',
   requireAuth,
@@ -72,6 +98,7 @@ verificationRouter.post(
          VALUES ($1, $2, $3, $4)`,
         [jobId, req.user?.id || null, 'VERIFY', `Verified ${items.length} cells`]
       );
+      await finalizeBatchIfDone(client, documentId);
       await client.query('COMMIT');
       res.json({ ok: true });
     } catch (error) {

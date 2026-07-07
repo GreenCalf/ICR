@@ -52,6 +52,11 @@ Each returns:
 - `current` — текущий статус
 - `allowedTransitions` — массив разрешённых статусов с текущим в первой позиции (включая no-op)
 
+Batch auto-closure:
+
+- If all documents in a batch reach final states (`COMPLETED` or `EXPORTED`), batch status is moved automatically to `COMPLETED` (from `IN_PROGRESS`).
+- Export endpoint updates document status from `COMPLETED` to `EXPORTED` on successful request.
+
 Batch status API (`PATCH /api/batches/:id/status`) accepts only:
 
 - `NEW` → `ASSIGNED`, `IN_PROGRESS`, `CLOSED`
