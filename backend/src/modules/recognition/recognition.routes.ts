@@ -35,6 +35,16 @@ recognitionRouter.get('/:id/cells', async (req, res) => {
   res.json(rows);
 });
 
+recognitionRouter.get('/document/:documentId', async (req, res) => {
+  const documentId = Number(req.params.documentId);
+  const { rows } = await pool.query(
+    `SELECT id, document_id, status, worker_id, created_at, started_at, completed_at
+     FROM recognition_jobs WHERE document_id=$1 ORDER BY id DESC`,
+    [documentId]
+  );
+  res.json(rows);
+});
+
 recognitionRouter.post('/', async (req, res) => {
   const documentId = Number(req.body.documentId || 0);
   if (!documentId) {
@@ -60,4 +70,3 @@ recognitionRouter.post('/', async (req, res) => {
 
   res.status(201).json(rows[0]);
 });
-

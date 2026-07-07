@@ -51,7 +51,7 @@ async function markJobDone(jobId: number, hasError = false) {
     `UPDATE recognition_jobs
      SET status=$1, completed_at=NOW()
      WHERE id=$2`,
-    [hasError ? 'ERROR' : 'DONE', jobId]
+    [hasError ? 'ERROR' : 'COMPLETED', jobId]
   );
 }
 
@@ -104,4 +104,3 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
-

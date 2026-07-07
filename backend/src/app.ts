@@ -5,6 +5,8 @@ import { env } from './config/env';
 import { authRouter } from './modules/auth/auth.routes';
 import { usersRouter } from './modules/users/users.routes';
 import { formsRouter } from './modules/forms/forms.routes';
+import { fieldsRouter } from './modules/fields/fields.routes';
+import { cellsRouter } from './modules/cells/cells.routes';
 import { documentsRouter } from './modules/documents/documents.routes';
 import { recognitionRouter } from './modules/recognition/recognition.routes';
 import { verificationRouter } from './modules/operator-verification/verification.routes';
@@ -24,6 +26,8 @@ export function createApp() {
   app.use('/api/auth', authRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/forms', formsRouter);
+  app.use(fieldsRouter);
+  app.use(cellsRouter);
   app.use('/api/documents', documentsRouter);
   app.use('/api/recognition-jobs', recognitionRouter);
   app.use('/api/recognition-jobs', verificationRouter);
@@ -40,4 +44,3 @@ export function createApp() {
 
   return app;
 }
-
