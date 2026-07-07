@@ -210,10 +210,6 @@
         });
       }
 
-      function getScreenshotTemplatePath() {
-        return '/storage/templates/screenshot-2019-12-16-at-01-23-20-1-.png';
-      }
-
       function getTemplateImageUrl(fileName) {
         const base = apiBase().replace(/\/api\/?$/, '');
         const name = (fileName || '').trim();
@@ -221,6 +217,11 @@
           ? name
           : `/storage/templates/${name}`;
         return `${base}${normalizedName}`;
+      }
+
+      function getTemplateStoragePath(fileName) {
+        const name = (fileName || '').trim();
+        return name.startsWith('/') ? name : `/storage/templates/${name}`;
       }
 
       function showTemplateImage(fileName) {
@@ -396,6 +397,8 @@
       async function createSampleFromScreenshot() {
         setBusy(true);
         try {
+          const screenshotName = $('templateImageInput').value.trim() || 'screenshot-2019-12-16-at-01-23-20-1-.png';
+          const imageUrl = getTemplateImageUrl(screenshotName);
           status('creating sample form from screenshot');
           const form = await requestJson('/forms', {
             method: 'POST',
@@ -405,7 +408,7 @@
               version: '1.0',
               description: 'auto-generated for demo',
               template: {
-                imagePath: getScreenshotTemplatePath()
+                imagePath: getTemplateStoragePath(screenshotName)
               },
               fields: [
                 {
@@ -427,8 +430,14 @@
           paintState();
 
           status('creating document');
-          const blob = new Blob(['demo-file-content'], { type: 'image/png' });
-          const sampleFile = new File([blob], `demo-${Date.now()}.png`, { type: 'image/png' });
+          const screenshotResponse = await fetch(imageUrl);
+          if (!screenshotResponse.ok) {
+            throw new Error(`Cannot load screenshot: ${screenshotResponse.status} ${screenshotResponse.statusText}`);
+          }
+          const screenshotBlob = await screenshotResponse.blob();
+          const sampleFile = new File([screenshotBlob], screenshotName, {
+            type: screenshotBlob.type || 'image/png'
+          });
           const fd = new FormData();
           fd.append('formId', String(state.formId));
           fd.append('file', sampleFile);
