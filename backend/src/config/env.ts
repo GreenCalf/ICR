@@ -4,7 +4,7 @@ dotenv.config();
 
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: Number(process.env.PORT || 3000),
+  port: Number(process.env.PORT || 4000),
   databaseHost: process.env.DATABASE_HOST || 'localhost',
   databasePort: Number(process.env.DATABASE_PORT || 5432),
   databaseName: process.env.DATABASE_NAME || 'icr',
@@ -13,4 +13,3 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET || 'dev_secret',
   storageRoot: process.env.STORAGE_ROOT || '../storage'
 };
-
