@@ -470,6 +470,9 @@
         setBusy(true);
         try {
           const screenshotName = $('templateImageInput').value.trim() || 'screenshot-2019-12-16-at-01-23-20-1-.png';
+          if (!screenshotName) {
+            throw new Error('Не указан путь к шаблону');
+          }
           const imageUrl = getTemplateImageUrl(screenshotName);
           status('создание формы по скриншоту');
           const form = await requestJson('/forms', {
