@@ -15,7 +15,7 @@ authRouter.post('/login', async (req, res) => {
   }
 
   const { rows } = await pool.query(
-    'SELECT id, login, password_hash, role, active FROM users WHERE login = $1',
+    'SELECT id, login, full_name, password_hash, role, active FROM users WHERE login = $1',
     [login]
   );
   if (!rows.length) {
@@ -34,10 +34,17 @@ authRouter.post('/login', async (req, res) => {
     { expiresIn: '12h' }
   );
 
-  return res.json({ token });
+  return res.json({
+    token,
+    user: {
+      id: user.id,
+      login: user.login,
+      fullName: user.full_name,
+      role: user.role
+    }
+  });
 });
 
 authRouter.get('/me', requireAuth, async (req: AuthRequest, res) => {
   return res.json({ user: req.user });
 });
-

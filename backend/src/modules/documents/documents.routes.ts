@@ -63,7 +63,7 @@ documentsRouter.get('/:id', async (req, res) => {
 });
 
 async function createDocument(req: any, res: any) {
-  const formId = Number(req.body.formId || 0);
+  const formId = Number(req.body.formId || req.body.templateId || 0);
   if (!req.file) {
     return res.status(400).json({ message: 'file is required' });
   }

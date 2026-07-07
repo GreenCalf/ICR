@@ -151,6 +151,39 @@ batchesRouter.post('/:id/documents', requireRole(['ADMIN']), async (req: AuthReq
   }
 });
 
+batchesRouter.post('/:id/assign', requireRole(['ADMIN']), async (req: AuthRequest, res) => {
+  const batchId = Number(req.params.id);
+  if (!batchId) {
+    return res.status(400).json({ message: 'id is required' });
+  }
+
+  const operatorId = Number(req.body.operatorId || 0);
+  if (!operatorId) {
+    return res.status(400).json({ message: 'operatorId is required' });
+  }
+
+  const user = await pool.query('SELECT id FROM users WHERE id=$1 AND role IN (\'OPERATOR\', \'SUPERVISOR\')', [operatorId]);
+  if (!user.rows.length) {
+    return res.status(404).json({ message: 'Operator not found' });
+  }
+
+  const batchRows = await pool.query('SELECT status FROM batches WHERE id=$1', [batchId]);
+  if (!batchRows.rows.length) {
+    return res.status(404).json({ message: 'Batch not found' });
+  }
+
+  const { rows } = await pool.query(
+    `UPDATE batches SET status='ASSIGNED' WHERE id=$1
+      RETURNING id, name, status, created_at, created_by`,
+    [batchId]
+  );
+
+  return res.json({
+    ...rows[0],
+    operatorId
+  });
+});
+
 batchesRouter.patch('/:id/status', requireRole(['ADMIN']), async (req, res) => {
   const batchId = Number(req.params.id);
   if (!batchId) {
