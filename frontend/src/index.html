@@ -563,14 +563,21 @@
           method: 'GET'
         });
         const jobStatus = jobInfo.status || 'UNKNOWN';
+        const normalizedStatus = String(jobStatus).toUpperCase();
+        const inProgress = ['CHECKING', 'PENDING', 'IN_PROGRESS', 'RUNNING'].includes(normalizedStatus);
         const cells = await requestJson(`/recognition/jobs/${state.jobId}/cells`, {
           method: 'GET'
         });
         state.cells = Array.isArray(cells) ? cells : [];
         renderCells();
         if (!state.cells.length) {
-          status(`задание #${jobInfo.id || state.jobId}: ${jobStatus} (нет ячеек)`);
-          log(`Нет ячеек для задания #${jobInfo.id || state.jobId}; возможная причина: в форме не настроены ячейки.`);
+          if (inProgress) {
+            status(`задание #${jobInfo.id || state.jobId}: ${jobStatus} (ожидание результатов)`);
+            log(`Ячейки пока отсутствуют для задания #${jobInfo.id || state.jobId}; идет обработка.`);
+          } else {
+            status(`задание #${jobInfo.id || state.jobId}: ${jobStatus} (нет ячеек)`);
+            log(`Нет ячеек для задания #${jobInfo.id || state.jobId}; возможная причина: в форме не настроены ячейки.`);
+          }
         } else {
           status(`задание #${jobInfo.id || state.jobId}: ${jobStatus}`);
           log(`Загружено ${state.cells.length} ячеек`);
