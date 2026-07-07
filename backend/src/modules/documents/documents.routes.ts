@@ -24,6 +24,23 @@ const upload = multer({
 export const documentsRouter = Router();
 documentsRouter.use(requireAuth);
 
+type DocumentStatus = 'NEW' | 'PROCESSING' | 'RECOGNIZED' | 'CHECKING' | 'COMPLETED' | 'EXPORTED' | 'ERROR';
+
+const documentStatusTransitions: Record<DocumentStatus, DocumentStatus[]> = {
+  NEW: ['PROCESSING', 'ERROR'],
+  PROCESSING: ['CHECKING', 'ERROR'],
+  CHECKING: ['RECOGNIZED', 'ERROR'],
+  RECOGNIZED: ['COMPLETED', 'ERROR', 'EXPORTED'],
+  COMPLETED: ['EXPORTED'],
+  EXPORTED: [],
+  ERROR: ['NEW']
+};
+
+function isDocumentTransitionAllowed(from: string, to: DocumentStatus): boolean {
+  const allowed = documentStatusTransitions[from as DocumentStatus];
+  return Boolean(from === to || (allowed && allowed.includes(to)));
+}
+
 documentsRouter.get('/', async (req, res) => {
   const { rows } = await pool.query(
     `SELECT id, filename, original_name, form_id, status, created_by, created_at
@@ -73,6 +90,18 @@ documentsRouter.patch('/:id/status', async (req, res) => {
   if (!allowed.includes(status)) {
     return res.status(400).json({ message: 'invalid status' });
   }
+
+  const current = await pool.query(`SELECT status FROM documents WHERE id=$1`, [id]);
+  if (!current.rows.length) {
+    return res.status(404).json({ message: 'Not found' });
+  }
+  const currentStatus = current.rows[0].status;
+  if (!isDocumentTransitionAllowed(currentStatus, status as DocumentStatus)) {
+    return res.status(409).json({
+      message: `invalid status transition: ${currentStatus} -> ${status}`
+    });
+  }
+
   const { rows } = await pool.query(
     `UPDATE documents SET status=$1 WHERE id=$2 RETURNING id, status`,
     [status, id]

@@ -6,6 +6,20 @@ export const batchesRouter = Router();
 
 batchesRouter.use(requireAuth);
 
+type BatchStatus = 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CLOSED';
+const batchStatusTransitions: Record<BatchStatus, BatchStatus[]> = {
+  NEW: ['ASSIGNED', 'IN_PROGRESS', 'CLOSED'],
+  ASSIGNED: ['IN_PROGRESS', 'CLOSED'],
+  IN_PROGRESS: ['COMPLETED', 'CLOSED'],
+  COMPLETED: ['CLOSED'],
+  CLOSED: []
+};
+
+function isBatchTransitionAllowed(from: string, to: string): boolean {
+  const allowed = batchStatusTransitions[from as BatchStatus];
+  return Boolean(from === to || (allowed && allowed.includes(to as BatchStatus)));
+}
+
 batchesRouter.get('/', async (_req, res) => {
   const { rows } = await pool.query(
     `SELECT id, name, status, created_at, created_by FROM batches ORDER BY id DESC`
@@ -115,6 +129,20 @@ batchesRouter.patch('/:id/status', requireRole(['ADMIN']), async (req, res) => {
     return res.status(400).json({ message: 'invalid status' });
   }
 
+  const current = await pool.query(
+    `SELECT status FROM batches WHERE id=$1`,
+    [batchId]
+  );
+  if (!current.rows.length) {
+    return res.status(404).json({ message: 'Batch not found' });
+  }
+  const currentStatus = current.rows[0].status;
+  if (!isBatchTransitionAllowed(currentStatus, status)) {
+    return res.status(409).json({
+      message: `invalid status transition: ${currentStatus} -> ${status}`
+    });
+  }
+
   const { rows } = await pool.query(
     `UPDATE batches
        SET status=$1
@@ -132,6 +160,16 @@ batchesRouter.post('/:id/enqueue', requireRole(['OPERATOR', 'SUPERVISOR', 'ADMIN
   const batchId = Number(req.params.id);
   if (!batchId) {
     return res.status(400).json({ message: 'id is required' });
+  }
+
+  const batchRow = await pool.query('SELECT status FROM batches WHERE id=$1', [batchId]);
+  if (!batchRow.rows.length) {
+    return res.status(404).json({ message: 'Batch not found' });
+  }
+  if (!isBatchTransitionAllowed(batchRow.rows[0].status, 'IN_PROGRESS')) {
+    return res.status(409).json({
+      message: `invalid status transition: ${batchRow.rows[0].status} -> IN_PROGRESS`
+    });
   }
 
   const docs = await pool.query(

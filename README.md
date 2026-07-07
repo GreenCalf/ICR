@@ -31,3 +31,20 @@
 Default admin (created automatically by backend at first launch if empty DB):  
 login `admin`, password `admin123`.
 
+## Status transition contract (backend-guarded)
+
+Document status API (`PATCH /api/documents/:id/status`) accepts only these transitions:
+
+- `NEW` → `PROCESSING`, `ERROR`
+- `PROCESSING` → `CHECKING`, `ERROR`
+- `CHECKING` → `RECOGNIZED`, `ERROR`
+- `RECOGNIZED` → `COMPLETED`, `ERROR`, `EXPORTED`
+- `COMPLETED` → `EXPORTED`
+- `ERROR` → `NEW`
+
+Batch status API (`PATCH /api/batches/:id/status`) accepts only:
+
+- `NEW` → `ASSIGNED`, `IN_PROGRESS`, `CLOSED`
+- `ASSIGNED` → `IN_PROGRESS`, `CLOSED`
+- `IN_PROGRESS` → `COMPLETED`, `CLOSED`
+- `COMPLETED` → `CLOSED`

@@ -28,14 +28,34 @@ verificationRouter.post(
         );
       }
       const jobRows = await client.query(
-        `SELECT document_id FROM recognition_jobs WHERE id=$1`,
+        `SELECT j.document_id, j.status AS job_status, d.status AS document_status
+           FROM recognition_jobs j
+           JOIN documents d ON d.id = j.document_id
+          WHERE j.id=$1`,
         [jobId]
       );
       if (!jobRows.rows.length) {
         await client.query('ROLLBACK');
         return res.status(404).json({ message: 'Job not found' });
       }
-      const documentId = jobRows.rows[0].document_id;
+
+      const { document_id, job_status, document_status } = jobRows.rows[0];
+      const verifyAllowedJobStatuses = ['CHECKING', 'RECOGNIZED', 'COMPLETED'];
+      const verifyAllowedDocumentStatuses = ['CHECKING', 'RECOGNIZED', 'COMPLETED'];
+      if (!verifyAllowedJobStatuses.includes(job_status)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          message: `invalid job state for verification: ${job_status}`
+        });
+      }
+      if (!verifyAllowedDocumentStatuses.includes(document_status)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          message: `invalid document state for verification: ${document_status}`
+        });
+      }
+
+      const documentId = document_id;
 
       await client.query(
         `UPDATE recognition_jobs
