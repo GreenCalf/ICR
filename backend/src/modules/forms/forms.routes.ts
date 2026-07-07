@@ -13,6 +13,69 @@ formsRouter.get('/', async (_req, res) => {
   res.json(rows);
 });
 
+formsRouter.get('/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ message: 'id is required' });
+
+  const formRes = await pool.query(
+    'SELECT id, name, template_json, created_at FROM forms WHERE id=$1',
+    [id]
+  );
+  if (!formRes.rows.length) {
+    return res.status(404).json({ message: 'Form not found' });
+  }
+
+  const form = formRes.rows[0];
+
+  const markersRes = await pool.query(
+    'SELECT id, kind, x, y, width, height, created_at FROM markers WHERE form_id=$1 ORDER BY id ASC',
+    [id]
+  );
+  const fieldsRes = await pool.query(
+    'SELECT id, form_id, name, code, data_type, required, allowed_chars, validation_rule, created_at FROM fields WHERE form_id=$1 ORDER BY id ASC',
+    [id]
+  );
+  const cellsRes = await pool.query(
+    'SELECT id, form_id, field_id, x, y, width, height, position_x, position_y, expected_value FROM cells WHERE form_id=$1 ORDER BY id ASC',
+    [id]
+  );
+
+  return res.json({
+    ...form,
+    markers: markersRes.rows,
+    fields: fieldsRes.rows,
+    cells: cellsRes.rows
+  });
+});
+
+formsRouter.put('/:id', requireRole(['ADMIN']), async (req: AuthRequest, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ message: 'id is required' });
+
+  const body = req.body || {};
+  const currentRes = await pool.query(
+    'SELECT name, template_json FROM forms WHERE id=$1',
+    [id]
+  );
+  if (!currentRes.rows.length) {
+    return res.status(404).json({ message: 'Form not found' });
+  }
+
+  const current = currentRes.rows[0];
+  const name = String(body.name || current.name).trim();
+  const template = body.template !== undefined ? body.template : current.template_json;
+
+  if (!name) {
+    return res.status(400).json({ message: 'name is required' });
+  }
+
+  const { rows } = await pool.query(
+    'UPDATE forms SET name=$1, template_json=$2 WHERE id=$3 RETURNING id, name, template_json, created_at',
+    [name, template, id]
+  );
+  res.json(rows[0]);
+});
+
 formsRouter.post('/', requireRole(['ADMIN']), async (req: AuthRequest, res) => {
   const body = req.body || {};
   const name = String(body.name || '').trim();
@@ -76,4 +139,3 @@ formsRouter.post('/', requireRole(['ADMIN']), async (req: AuthRequest, res) => {
     client.release();
   }
 });
-

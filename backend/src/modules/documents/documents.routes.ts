@@ -62,7 +62,7 @@ documentsRouter.get('/:id', async (req, res) => {
   res.json(rows[0]);
 });
 
-documentsRouter.post('/', upload.single('file'), async (req, res) => {
+async function createDocument(req: any, res: any) {
   const formId = Number(req.body.formId || 0);
   if (!req.file) {
     return res.status(400).json({ message: 'file is required' });
@@ -80,7 +80,15 @@ documentsRouter.post('/', upload.single('file'), async (req, res) => {
       RETURNING id, form_id, filename, original_name, storage_path, status, created_at`,
     [formId, filename, originalName, req.file.path, req.user?.id || null]
   );
-  res.status(201).json(rows[0]);
+  return res.status(201).json(rows[0]);
+}
+
+documentsRouter.post('/', upload.single('file'), async (req, res) => {
+  return createDocument(req, res);
+});
+
+documentsRouter.post('/upload', upload.single('file'), async (req, res) => {
+  return createDocument(req, res);
 });
 
 documentsRouter.patch('/:id/status', async (req, res) => {

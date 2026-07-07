@@ -13,6 +13,7 @@ import { recognitionRouter } from './modules/recognition/recognition.routes';
 import { characterSamplesRouter } from './modules/character-samples/character-samples.routes';
 import { verificationRouter } from './modules/operator-verification/verification.routes';
 import { exportsRouter } from './modules/exports/exports.routes';
+import { markersRouter } from './modules/markers/markers.routes';
 
 export function createApp() {
   const app = express();
@@ -85,11 +86,17 @@ export function createApp() {
   app.use('/api/forms', formsRouter);
   app.use('/api/forms', fieldsRouter);
   app.use('/api/forms', cellsRouter);
+  app.use('/api/fields', fieldsRouter);
+  app.use('/api/fields', cellsRouter);
   app.use('/api/batches', batchesRouter);
   app.use('/api/forms', characterSamplesRouter);
   app.use('/api/documents', documentsRouter);
+  app.use('/api/recognition/jobs', recognitionRouter);
   app.use('/api/recognition-jobs', recognitionRouter);
+  app.use('/api/recognition/jobs', verificationRouter);
   app.use('/api/recognition-jobs', verificationRouter);
+  app.use('/api/operator', verificationRouter);
+  app.use('/api/forms', markersRouter);
   app.use('/api/exports', exportsRouter);
 
   app.use((err: any, _req: any, res: any, _next: any) => {
