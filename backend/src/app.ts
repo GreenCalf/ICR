@@ -35,7 +35,39 @@ export function createApp() {
   });
 
   app.get('/docs', (_req, res) => {
-    res.type('html').send('<!doctype html><html><body><h1>ICR API</h1><p>OpenAPI spec: <a href="/openapi.json">/openapi.json</a></p></body></html>');
+    res.type('html').send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ICR API</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css" />
+    <style>
+      html, body, #swagger-ui {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+      window.onload = () => {
+        if (!window.SwaggerUIBundle) {
+          document.body.innerHTML = '<div style="padding:16px;font-family:Arial,sans-serif;">Swagger UI library could not be loaded. OpenAPI spec: <a href="/openapi.json">/openapi.json</a></div>';
+          return;
+        }
+        SwaggerUIBundle({
+          url: '/openapi.json',
+          dom_id: '#swagger-ui',
+          presets: [SwaggerUIBundle.presets.apis]
+        });
+      };
+    </script>
+  </body>
+</html>`);
   });
 
   app.use('/api/auth', authRouter);
