@@ -26,6 +26,16 @@ export function createApp() {
     res.json({ ok: true });
   });
 
+  app.get('/', (_req, res) => {
+    res.send(
+      '<!doctype html><html><head><meta charset="utf-8"><title>ICR Platform</title></head>' +
+      '<body style="font-family:Arial,sans-serif;padding:24px;"><h1>ICR Platform API</h1>' +
+      '<ul><li><a href="/health">Health</a></li>' +
+      '<li><a href="/docs">Swagger docs</a></li>' +
+      '<li><a href="/openapi.json">OpenAPI JSON</a></li></ul></body></html>'
+    );
+  });
+
   app.get('/openapi.json', (_req, res) => {
     res.sendFile(openApiPath, (err) => {
       if (err) {
