@@ -256,6 +256,7 @@
 
       function candidateSymbols(cell) {
         const candidateValues = cell.candidate_values;
+        if (!candidateValues) return [];
         const candidates = Array.isArray(candidateValues)
           ? candidateValues
           : (typeof candidateValues === 'string'
@@ -271,7 +272,15 @@
         if (!candidates.length) {
           return [{ symbol: String(cell.recognized_value || '') }];
         }
-        return candidates;
+        return candidates.map((item) => {
+          if (typeof item === 'string') {
+            return { symbol: item };
+          }
+          if (item && typeof item === 'object') {
+            return { symbol: item.symbol || item.value || item.text || '' };
+          }
+          return { symbol: String(item || '') };
+        });
       }
 
       function renderCells() {
