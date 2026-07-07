@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = (req, res) => {
-  if (req.url === '/' || req.url === '/index.html') {
+  if (req.url === '/' || req.url === '/index.html' || req.url === '/login') {
     const filePath = path.join(__dirname, 'src', 'index.html');
     const content = fs.readFileSync(filePath);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -18,7 +18,7 @@ const app = (req, res) => {
 };
 
 const server = http.createServer(app);
-server.listen(4200, () => {
-  console.log('Frontend placeholder running at http://localhost:4200');
+const port = Number(process.env.PORT || 3030);
+server.listen(port, () => {
+  console.log(`Frontend placeholder running at http://localhost:${port}`);
 });
-
