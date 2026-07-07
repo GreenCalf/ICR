@@ -1,0 +1,2 @@
+-- Seed templates.
+-- Backend creates an admin user automatically on first start if users table is empty.

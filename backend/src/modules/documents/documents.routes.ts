@@ -1,0 +1,82 @@
+import { Router } from 'express';
+import path from 'path';
+import fs from 'fs';
+import multer from 'multer';
+import { pool } from '../../config/db';
+import { env } from '../../config/env';
+import { requireAuth } from '../../middleware/auth';
+
+const storageDir = path.resolve(env.storageRoot, 'documents');
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      if (!fs.existsSync(storageDir)) {
+        fs.mkdirSync(storageDir, { recursive: true });
+      }
+      cb(null, storageDir);
+    },
+    filename: (_req, file, cb) => {
+      cb(null, `${Date.now()}-${file.originalname}`);
+    }
+  })
+});
+
+export const documentsRouter = Router();
+documentsRouter.use(requireAuth);
+
+documentsRouter.get('/', async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT id, filename, original_name, form_id, status, created_by, created_at
+     FROM documents ORDER BY id DESC`
+  );
+  res.json(rows);
+});
+
+documentsRouter.get('/:id', async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT d.id, d.filename, d.original_name, d.form_id, d.status, d.created_by, d.created_at,
+            f.name as form_name
+     FROM documents d
+     LEFT JOIN forms f ON f.id = d.form_id
+     WHERE d.id=$1`,
+    [Number(req.params.id)]
+  );
+  if (!rows.length) return res.status(404).json({ message: 'Not found' });
+  res.json(rows[0]);
+});
+
+documentsRouter.post('/', upload.single('file'), async (req, res) => {
+  const formId = Number(req.body.formId || 0);
+  if (!req.file) {
+    return res.status(400).json({ message: 'file is required' });
+  }
+  if (!formId) {
+    return res.status(400).json({ message: 'formId is required' });
+  }
+
+  const filename = req.file.filename;
+  const originalName = req.file.originalname || '';
+
+  const { rows } = await pool.query(
+    `INSERT INTO documents (form_id, filename, original_name, storage_path, created_by, status)
+      VALUES ($1, $2, $3, $4, $5, 'NEW')
+      RETURNING id, form_id, filename, original_name, storage_path, status, created_at`,
+    [formId, filename, originalName, req.file.path, req.user?.id || null]
+  );
+  res.status(201).json(rows[0]);
+});
+
+documentsRouter.patch('/:id/status', async (req, res) => {
+  const id = Number(req.params.id);
+  const status = String(req.body.status || '').trim();
+  const allowed = ['NEW', 'PROCESSING', 'RECOGNIZED', 'CHECKING', 'COMPLETED', 'EXPORTED', 'ERROR'];
+  if (!allowed.includes(status)) {
+    return res.status(400).json({ message: 'invalid status' });
+  }
+  const { rows } = await pool.query(
+    `UPDATE documents SET status=$1 WHERE id=$2 RETURNING id, status`,
+    [status, id]
+  );
+  if (!rows.length) return res.status(404).json({ message: 'Not found' });
+  res.json(rows[0]);
+});

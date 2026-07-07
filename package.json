@@ -1,0 +1,15 @@
+{
+  "name": "icr-platform",
+  "private": true,
+  "version": "0.1.0",
+  "type": "commonjs",
+  "scripts": {
+    "backend:dev": "npm --prefix backend run dev",
+    "backend:build": "npm --prefix backend run build",
+    "worker:dev": "npm --prefix recognition-worker run dev",
+    "worker:build": "npm --prefix recognition-worker run build",
+    "frontend:dev": "npm --prefix frontend run start",
+    "setup": "npm --prefix backend install && npm --prefix recognition-worker install && npm --prefix frontend install"
+  }
+}
+

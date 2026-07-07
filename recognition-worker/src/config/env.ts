@@ -1,0 +1,14 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+export const workerEnv = {
+  databaseHost: process.env.DATABASE_HOST || 'localhost',
+  databasePort: Number(process.env.DATABASE_PORT || 5432),
+  databaseName: process.env.DATABASE_NAME || 'icr',
+  databaseUser: process.env.DATABASE_USER || 'postgres',
+  databasePassword: process.env.DATABASE_PASSWORD || '12345',
+  workerId: process.env.WORKER_ID || 'worker-1',
+  pollIntervalMs: Number(process.env.POLL_INTERVAL_MS || 2000),
+  recognitionMode: process.env.RECOGNITION_MODE || 'STUB'
+};
+

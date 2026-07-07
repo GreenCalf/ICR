@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+backend/.env
+backend/dist/
+recognition-worker/dist/
+frontend/node_modules/
+frontend/.angular/
+storage/documents/*
+storage/cells/*
+storage/exports/*
+
