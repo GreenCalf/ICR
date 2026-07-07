@@ -115,6 +115,20 @@
       </div>
 
       <div class="card">
+        <h3>Template preview</h3>
+        <div class="row">
+          <label for="templateImageInput">Template path</label>
+          <input id="templateImageInput" value="screenshot-2019-12-16-at-01-23-20-1-.png" />
+        </div>
+        <div class="btn-row">
+          <button id="btnPreviewTemplateImage">Preview template</button>
+          <a id="templateImageLink" target="_blank" rel="noreferrer">Open original</a>
+        </div>
+        <p><span id="templateImageStatus">not set</span></p>
+        <img id="templateImage" alt="template preview" style="max-width:100%;max-height:280px;border:1px solid #dbe3ff;border-radius:8px;display:none;" />
+      </div>
+
+      <div class="card">
         <h3>Recognition cells</h3>
         <table>
           <thead>
@@ -200,6 +214,29 @@
         return '/storage/templates/screenshot-2019-12-16-at-01-23-20-1-.png';
       }
 
+      function getTemplateImageUrl(fileName) {
+        const base = apiBase().replace(/\/api\/?$/, '');
+        const name = (fileName || '').trim();
+        const normalizedName = name.startsWith('/')
+          ? name
+          : `/storage/templates/${name}`;
+        return `${base}${normalizedName}`;
+      }
+
+      function showTemplateImage(fileName) {
+        const url = getTemplateImageUrl(fileName || 'screenshot-2019-12-16-at-01-23-20-1-.png');
+        const preview = $('templateImage');
+        const link = $('templateImageLink');
+        const status = $('templateImageStatus');
+        preview.src = '';
+        preview.style.display = 'none';
+        preview.src = url;
+        preview.style.display = 'block';
+        link.href = url;
+        link.textContent = 'Open original';
+        status.textContent = `Image: ${url}`;
+      }
+
       function candidateSymbols(cell) {
         const candidates = Array.isArray(cell.candidate_values) ? cell.candidate_values : [];
         if (!candidates.length) {
@@ -274,6 +311,7 @@
         $('btnCreateFromScreenshot').disabled = false;
         $('btnVerifyAll').disabled = true;
         $('btnRefreshCells').disabled = true;
+        showTemplateImage($('templateImageInput').value || 'screenshot-2019-12-16-at-01-23-20-1-.png');
         status('logged');
         log('Logged in', data.user);
       }
@@ -461,6 +499,7 @@
       $('btnLogin').addEventListener('click', login);
       $('btnCreateSample').addEventListener('click', createSampleFormAndDocument);
       $('btnCreateFromScreenshot').addEventListener('click', createSampleFromScreenshot);
+      $('btnPreviewTemplateImage').addEventListener('click', () => showTemplateImage($('templateImageInput').value));
       $('btnRefreshCells').addEventListener('click', () => refreshCells().catch((e) => log('Refresh error', e.message)));
       $('btnVerifyAll').addEventListener('click', () => verifyAll().catch((e) => log('Verify all error', e.message)));
       attachCellActions();
