@@ -1,16 +1,43 @@
 import { Router } from 'express';
+import path from 'path';
+import fs from 'fs';
+import multer from 'multer';
 import { pool } from '../../config/db';
 import { AuthRequest, requireAuth, requireRole } from '../../middleware/auth';
+import { env } from '../../config/env';
 
 export const formsRouter = Router();
 
 formsRouter.use(requireAuth);
 
+const templateDir = path.resolve(env.storageRoot, 'templates');
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      if (!fs.existsSync(templateDir)) {
+        fs.mkdirSync(templateDir, { recursive: true });
+      }
+      cb(null, templateDir);
+    },
+    filename: (_req, file, cb) => {
+      cb(null, `${Date.now()}-${file.originalname}`);
+    }
+  })
+});
+
 formsRouter.get('/', async (_req, res) => {
   const { rows } = await pool.query(
     'SELECT id, name, template_json, created_at FROM forms ORDER BY id DESC'
   );
-  res.json(rows);
+  const mapped = rows.map((row: any) => ({
+    id: row.id,
+    name: row.name,
+    version: row.template_json?.version || '1.0',
+    status: row.template_json?.status || 'ACTIVE',
+    imagePath: row.template_json?.imagePath || null,
+    createdAt: row.created_at
+  }));
+  res.json(mapped);
 });
 
 formsRouter.get('/:id', async (req, res) => {
@@ -42,6 +69,8 @@ formsRouter.get('/:id', async (req, res) => {
 
   return res.json({
     ...form,
+    version: form.template_json?.version || '1.0',
+    status: form.template_json?.status || 'ACTIVE',
     markers: markersRes.rows,
     fields: fieldsRes.rows,
     cells: cellsRes.rows
@@ -76,10 +105,22 @@ formsRouter.put('/:id', requireRole(['ADMIN']), async (req: AuthRequest, res) =>
   res.json(rows[0]);
 });
 
-formsRouter.post('/', requireRole(['ADMIN']), async (req: AuthRequest, res) => {
+formsRouter.post('/', requireRole(['ADMIN']), upload.single('image'), async (req: AuthRequest, res) => {
   const body = req.body || {};
   const name = String(body.name || '').trim();
   const template = body.template || {};
+  const version = String(body.version || '1.0');
+  const description = String(body.description || '');
+  const imagePath = req.file
+    ? `/storage/templates/${path.basename(req.file.path)}`
+    : (template.imagePath || null);
+
+  const finalTemplate = {
+    ...(typeof template === 'string' ? JSON.parse(template || '{}') : template),
+    version,
+    description,
+    imagePath
+  };
 
   if (!name) return res.status(400).json({ message: 'name is required' });
 
@@ -88,7 +129,7 @@ formsRouter.post('/', requireRole(['ADMIN']), async (req: AuthRequest, res) => {
     await client.query('BEGIN');
     const formIns = await client.query(
       'INSERT INTO forms (name, template_json, created_by) VALUES ($1, $2, $3) RETURNING id, name, template_json, created_at',
-      [name, template, req.user?.id || null]
+      [name, finalTemplate, req.user?.id || null]
     );
     const form = formIns.rows[0];
 
@@ -131,7 +172,12 @@ formsRouter.post('/', requireRole(['ADMIN']), async (req: AuthRequest, res) => {
     }
 
     await client.query('COMMIT');
-    res.status(201).json(form);
+    res.status(201).json({
+      id: form.id,
+      name: form.name,
+      version: form.template_json.version || version,
+      imagePath
+    });
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
