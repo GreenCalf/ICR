@@ -89,6 +89,7 @@
         <div class="btn-row">
           <button id="btnLogin">Login</button>
           <button id="btnCreateSample" disabled>Create sample flow</button>
+          <button id="btnCreateFromScreenshot" disabled>Use root screenshot</button>
           <button id="btnVerifyAll" disabled>Verify all cells</button>
           <button id="btnRefreshCells" disabled>Refresh cells</button>
           <a href="/health">Frontend health</a>
@@ -189,10 +190,14 @@
 
       function setBusy(flag) {
         const disabled = !!flag;
-        ['btnCreateSample', 'btnVerifyAll', 'btnRefreshCells', 'btnLogin'].forEach((id) => {
+        ['btnCreateSample', 'btnCreateFromScreenshot', 'btnVerifyAll', 'btnRefreshCells', 'btnLogin'].forEach((id) => {
           if (id === 'btnLogin' && !disabled) return;
           $(id).disabled = disabled;
         });
+      }
+
+      function getScreenshotTemplatePath() {
+        return '/storage/templates/screenshot-2019-12-16-at-01-23-20-1-.png';
       }
 
       function candidateSymbols(cell) {
@@ -266,6 +271,7 @@
         state.token = data.token || '';
         $('tokenInfo').textContent = `${data.user?.login || login} (${state.token.slice(0, 8)}...)`;
         $('btnCreateSample').disabled = false;
+        $('btnCreateFromScreenshot').disabled = false;
         $('btnVerifyAll').disabled = true;
         $('btnRefreshCells').disabled = true;
         status('logged');
@@ -349,6 +355,78 @@
         }
       }
 
+      async function createSampleFromScreenshot() {
+        setBusy(true);
+        try {
+          status('creating sample form from screenshot');
+          const form = await requestJson('/forms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: 'Template from screenshot',
+              version: '1.0',
+              description: 'auto-generated for demo',
+              template: {
+                imagePath: getScreenshotTemplatePath()
+              },
+              fields: [
+                {
+                  name: 'Сведения',
+                  code: 'data',
+                  dataType: 'text',
+                  required: true,
+                  cells: [
+                    { x: 0, y: 0, width: 120, height: 20, positionX: 1, positionY: 1 },
+                    { x: 0, y: 30, width: 120, height: 20, positionX: 2, positionY: 2 },
+                    { x: 0, y: 60, width: 120, height: 20, positionX: 3, positionY: 3 }
+                  ]
+                }
+              ]
+            })
+          });
+          state.formId = form.id;
+          log('Form created', form);
+          paintState();
+
+          status('creating document');
+          const blob = new Blob(['demo-file-content'], { type: 'image/png' });
+          const sampleFile = new File([blob], `demo-${Date.now()}.png`, { type: 'image/png' });
+          const fd = new FormData();
+          fd.append('formId', String(state.formId));
+          fd.append('file', sampleFile);
+          const docRes = await fetch(`${apiBase()}/documents`, {
+            method: 'POST',
+            headers: headers(),
+            body: fd
+          });
+          const docText = await docRes.text();
+          const doc = docText ? JSON.parse(docText) : null;
+          if (!docRes.ok) {
+            throw new Error(doc?.message || `${docRes.status} ${docRes.statusText}`);
+          }
+          state.documentId = doc.id;
+          paintState();
+          log('Document uploaded', doc);
+
+          status('starting recognition');
+          const jobRes = await requestJson(`/documents/${state.documentId}/recognize`, {
+            method: 'POST'
+          });
+          state.jobId = jobRes.jobId || jobRes.id || null;
+          paintState();
+          log('Recognition job', jobRes);
+          await refreshCells();
+          $('btnVerifyAll').disabled = false;
+          $('btnRefreshCells').disabled = false;
+          status('ready');
+        } catch (error) {
+          log('Screenshot flow error', error.message);
+          status('error');
+        } finally {
+          setBusy(false);
+        }
+      }
+
       async function refreshCells() {
         if (!state.jobId) return;
         const cells = await requestJson(`/recognition/jobs/${state.jobId}/cells`, {
@@ -382,6 +460,7 @@
 
       $('btnLogin').addEventListener('click', login);
       $('btnCreateSample').addEventListener('click', createSampleFormAndDocument);
+      $('btnCreateFromScreenshot').addEventListener('click', createSampleFromScreenshot);
       $('btnRefreshCells').addEventListener('click', () => refreshCells().catch((e) => log('Refresh error', e.message)));
       $('btnVerifyAll').addEventListener('click', () => verifyAll().catch((e) => log('Verify all error', e.message)));
       attachCellActions();
