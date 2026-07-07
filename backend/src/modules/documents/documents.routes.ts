@@ -91,6 +91,48 @@ documentsRouter.post('/upload', upload.single('file'), async (req, res) => {
   return createDocument(req, res);
 });
 
+documentsRouter.post('/:id/recognize', async (req, res) => {
+  const documentId = Number(req.params.id);
+  if (!documentId) {
+    return res.status(400).json({ message: 'id is required' });
+  }
+
+  const existing = await pool.query(
+    `SELECT id, status
+       FROM recognition_jobs
+      WHERE document_id=$1
+      ORDER BY id DESC
+      LIMIT 1`,
+    [documentId]
+  );
+
+  if (existing.rows.length && ['NEW', 'PROCESSING'].includes(existing.rows[0].status)) {
+    return res.status(200).json({
+      jobId: existing.rows[0].id,
+      documentId,
+      status: existing.rows[0].status
+    });
+  }
+
+  const inserted = await pool.query(
+    `INSERT INTO recognition_jobs (document_id, status, created_by)
+     VALUES ($1, 'NEW', $2)
+     RETURNING id, document_id, status`,
+    [documentId, req.user?.id || null]
+  );
+
+  await pool.query(
+    `UPDATE documents SET status='PROCESSING' WHERE id=$1`,
+    [documentId]
+  );
+
+  return res.status(201).json({
+    jobId: inserted.rows[0].id,
+    documentId: inserted.rows[0].document_id,
+    status: 'PENDING'
+  });
+});
+
 documentsRouter.patch('/:id/status', async (req, res) => {
   const id = Number(req.params.id);
   if (!id) {
