@@ -83,10 +83,10 @@ export function createApp() {
   app.use('/api/auth', authRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/forms', formsRouter);
-  app.use(fieldsRouter);
-  app.use(cellsRouter);
+  app.use('/api/forms', fieldsRouter);
+  app.use('/api/forms', cellsRouter);
   app.use('/api/batches', batchesRouter);
-  app.use(characterSamplesRouter);
+  app.use('/api/forms', characterSamplesRouter);
   app.use('/api/documents', documentsRouter);
   app.use('/api/recognition-jobs', recognitionRouter);
   app.use('/api/recognition-jobs', verificationRouter);

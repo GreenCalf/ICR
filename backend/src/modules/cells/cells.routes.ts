@@ -6,7 +6,7 @@ export const cellsRouter = Router();
 
 cellsRouter.use(requireAuth);
 
-cellsRouter.get('/api/forms/:formId/cells', async (req, res) => {
+cellsRouter.get('/:formId/cells', async (req, res) => {
   const formId = Number(req.params.formId);
   if (!formId) return res.status(400).json({ message: 'formId is required' });
 
@@ -20,7 +20,7 @@ cellsRouter.get('/api/forms/:formId/cells', async (req, res) => {
   res.json(rows);
 });
 
-cellsRouter.post('/api/forms/:formId/cells', requireRole(['ADMIN']), async (req: AuthRequest, res) => {
+cellsRouter.post('/:formId/cells', requireRole(['ADMIN']), async (req: AuthRequest, res) => {
   const formId = Number(req.params.formId);
   if (!formId) return res.status(400).json({ message: 'formId is required' });
 
@@ -48,4 +48,3 @@ cellsRouter.post('/api/forms/:formId/cells', requireRole(['ADMIN']), async (req:
 
   res.status(201).json(rows[0]);
 });
-

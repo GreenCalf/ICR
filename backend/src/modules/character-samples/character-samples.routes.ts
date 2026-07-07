@@ -6,7 +6,7 @@ export const characterSamplesRouter = Router();
 
 characterSamplesRouter.use(requireAuth);
 
-characterSamplesRouter.get('/api/forms/:formId/character-samples', async (req, res) => {
+characterSamplesRouter.get('/:formId/character-samples', async (req, res) => {
   const formId = Number(req.params.formId);
   if (!formId) return res.status(400).json({ message: 'formId is required' });
 
@@ -28,7 +28,7 @@ characterSamplesRouter.get('/api/forms/:formId/character-samples', async (req, r
 });
 
 characterSamplesRouter.post(
-  '/api/forms/:formId/fields/:fieldId/character-samples',
+  '/:formId/fields/:fieldId/character-samples',
   requireRole(['ADMIN', 'SUPERVISOR', 'OPERATOR']),
   async (req, res) => {
     const formId = Number(req.params.formId);
@@ -54,4 +54,3 @@ characterSamplesRouter.post(
     return res.status(201).json(rows[0]);
   }
 );
-

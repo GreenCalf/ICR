@@ -6,7 +6,7 @@ export const fieldsRouter = Router();
 
 fieldsRouter.use(requireAuth);
 
-fieldsRouter.get('/api/forms/:formId/fields', async (req, res) => {
+fieldsRouter.get('/:formId/fields', async (req, res) => {
   const formId = Number(req.params.formId);
   if (!formId) return res.status(400).json({ message: 'formId is required' });
 
@@ -20,7 +20,7 @@ fieldsRouter.get('/api/forms/:formId/fields', async (req, res) => {
   res.json(rows);
 });
 
-fieldsRouter.post('/api/forms/:formId/fields', requireRole(['ADMIN']), async (req, res) => {
+fieldsRouter.post('/:formId/fields', requireRole(['ADMIN']), async (req, res) => {
   const formId = Number(req.params.formId);
   if (!formId) return res.status(400).json({ message: 'formId is required' });
 
