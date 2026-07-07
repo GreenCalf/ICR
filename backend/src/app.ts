@@ -10,6 +10,7 @@ import { cellsRouter } from './modules/cells/cells.routes';
 import { documentsRouter } from './modules/documents/documents.routes';
 import { batchesRouter } from './modules/batches/batches.routes';
 import { recognitionRouter } from './modules/recognition/recognition.routes';
+import { characterSamplesRouter } from './modules/character-samples/character-samples.routes';
 import { verificationRouter } from './modules/operator-verification/verification.routes';
 import { exportsRouter } from './modules/exports/exports.routes';
 
@@ -30,6 +31,7 @@ export function createApp() {
   app.use(fieldsRouter);
   app.use(cellsRouter);
   app.use('/api/batches', batchesRouter);
+  app.use(characterSamplesRouter);
   app.use('/api/documents', documentsRouter);
   app.use('/api/recognition-jobs', recognitionRouter);
   app.use('/api/recognition-jobs', verificationRouter);

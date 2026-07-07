@@ -20,7 +20,6 @@ verificationRouter.post(
         const cellId = Number(it.cellId);
         if (!cellId) continue;
         const value = String(it.value || '');
-        const status = String(it.status || 'VERIFIED');
         await client.query(
           `UPDATE recognition_cells
            SET recognized_value=$1, status='VERIFIED', candidate_values=COALESCE(candidate_values, '[]'::jsonb)
@@ -32,7 +31,7 @@ verificationRouter.post(
         `SELECT document_id FROM recognition_jobs WHERE id=$1`,
         [jobId]
       );
-      if (!jobRows.length) {
+      if (!jobRows.rows.length) {
         await client.query('ROLLBACK');
         return res.status(404).json({ message: 'Job not found' });
       }
@@ -64,3 +63,46 @@ verificationRouter.post(
   }
 );
 
+verificationRouter.get(
+  '/:id/actions',
+  requireAuth,
+  async (req, res) => {
+    const jobId = Number(req.params.id);
+    if (!jobId) {
+      return res.status(400).json({ message: 'id is required' });
+    }
+
+    const { rows } = await pool.query(
+      `SELECT id, action, comment, created_at, user_id
+         FROM operator_actions
+        WHERE recognition_job_id=$1
+        ORDER BY id DESC`,
+      [jobId]
+    );
+
+    return res.json(rows);
+  }
+);
+
+verificationRouter.post(
+  '/:id/actions',
+  requireAuth,
+  requireRole(['OPERATOR', 'SUPERVISOR', 'ADMIN']),
+  async (req, res) => {
+    const jobId = Number(req.params.id);
+    const action = String(req.body.action || 'COMMENT').trim();
+    const comment = String(req.body.comment || '').trim();
+
+    if (!jobId || !comment) {
+      return res.status(400).json({ message: 'id and comment are required' });
+    }
+
+    await pool.query(
+      `INSERT INTO operator_actions (recognition_job_id, user_id, action, comment)
+       VALUES ($1, $2, $3, $4)`,
+      [jobId, req.user?.id || null, action, comment]
+    );
+
+    return res.status(201).json({ ok: true });
+  }
+);
