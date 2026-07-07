@@ -153,6 +153,7 @@
     <script>
       const state = {
         token: '',
+        isLoggedIn: false,
         formId: null,
         documentId: null,
         jobId: null,
@@ -346,6 +347,7 @@
             body: JSON.stringify({ login, password })
           });
           state.token = data.token || '';
+          state.isLoggedIn = true;
           $('tokenInfo').textContent = `${data.user?.login || login} (${state.token.slice(0, 8)}...)`;
           $('btnCreateSample').disabled = false;
           $('btnCreateFromScreenshot').disabled = false;
@@ -356,11 +358,16 @@
           log('Успешный вход', data.user);
         } catch (error) {
           state.token = '';
+          state.isLoggedIn = false;
           $('tokenInfo').textContent = 'не авторизован';
           status('ошибка входа');
           log('Ошибка входа', error.message);
         } finally {
           setBusy(false);
+          $('btnCreateSample').disabled = !state.isLoggedIn;
+          $('btnCreateFromScreenshot').disabled = !state.isLoggedIn;
+          $('btnVerifyAll').disabled = true;
+          $('btnRefreshCells').disabled = true;
         }
       }
 
